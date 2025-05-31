@@ -65,9 +65,15 @@ def main():
         )
         
         # Автоматичне оновлення
-        auto_refresh = st.checkbox("Авто-оновлення (10с)", value=True)
+        auto_refresh = st.checkbox("Авто-оновлення (30с)", value=False)
         if auto_refresh:
-            time.sleep(10)
+            # Використовуємо st.empty() для оновлення без блокування
+            placeholder = st.empty()
+            with placeholder.container():
+                st.info("🔄 Авто-оновлення увімкнено")
+                
+        # Кнопка ручного оновлення
+        if st.button("🔄 Оновити дані"):
             st.rerun()
     
     # Маршрутизація сторінок
@@ -108,7 +114,8 @@ def show_dashboard():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        temp_value = system_data.get('cpu_temp', system_data.get('cpu_percent', 0))
+        temp_value = system_data.get('cpu_temp') or system_data.get('cpu_percent') or 0
+        temp_value = float(temp_value) if temp_value is not None else 0
         temp_unit = "°C" if system_data.get('cpu_temp') else "%"
         st.metric(
             label="🌡️ Температура/CPU",
@@ -117,16 +124,20 @@ def show_dashboard():
         )
     
     with col2:
+        ram_percent = system_data.get('ram_percent', 0)
+        ram_percent = float(ram_percent) if ram_percent is not None else 0
         st.metric(
             label="💾 RAM",
-            value=f"{system_data['ram_percent']:.1f}%",
+            value=f"{ram_percent:.1f}%",
             delta=predictions.get('ram_trend', 0)
         )
     
     with col3:
+        disk_percent = system_data.get('disk_percent', 0)
+        disk_percent = float(disk_percent) if disk_percent is not None else 0
         st.metric(
             label="💿 Диск",
-            value=f"{system_data['disk_percent']:.1f}%",
+            value=f"{disk_percent:.1f}%",
             delta=predictions.get('disk_trend', 0)
         )
     

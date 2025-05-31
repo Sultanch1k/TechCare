@@ -199,9 +199,14 @@ class AIEngine:
     
     def fallback_predictions(self, current_data):
         """Резервні прогнози без ML"""
-        cpu_metric = current_data.get('cpu_temp', current_data.get('cpu_percent', 0))
-        ram_percent = current_data.get('ram_percent', 0)
-        disk_percent = current_data.get('disk_percent', 0)
+        cpu_metric = current_data.get('cpu_temp') or current_data.get('cpu_percent') or 0
+        ram_percent = current_data.get('ram_percent') or 0
+        disk_percent = current_data.get('disk_percent') or 0
+        
+        # Забезпечуємо що всі значення є числами
+        cpu_metric = float(cpu_metric) if cpu_metric is not None else 0
+        ram_percent = float(ram_percent) if ram_percent is not None else 0
+        disk_percent = float(disk_percent) if disk_percent is not None else 0
         
         # Простий алгоритм оцінки здоров'я
         health_score = 100
