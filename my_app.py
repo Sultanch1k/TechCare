@@ -19,9 +19,7 @@ from achievements import SimpleAchievements
 from tests import SimpleTests
 from repair import SimpleRepair
 
-# мої іконки
-from icons import *
-from student_style import *
+# TODO: можна додати іконки пізніше
 
 def init_my_app():
     """Ініціалізація моєї програми"""
