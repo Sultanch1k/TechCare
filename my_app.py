@@ -12,12 +12,12 @@ from datetime import datetime
 import time
 
 # мої модулі
-from simple_monitor import get_system_data
+from monitor import get_system_data
 from data_manager import DataManager
-from simple_ai import SimpleAI
-from simple_achievements import SimpleAchievements
-from simple_tests import SimpleTests
-from simple_repair import SimpleRepair
+from ai import SimpleAI
+from achievements import SimpleAchievements
+from tests import SimpleTests
+from repair import SimpleRepair
 
 # мої іконки
 from icons import *
@@ -41,17 +41,17 @@ def show_main_page():
     # отримуємо дані
     data = get_system_data()
     
-    # простий спосіб показати метрики
+    # показуємо метрики простим способом
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown(get_simple_metric("CPU", f"{data['cpu_percent']:.1f}%", get_cpu_icon()), unsafe_allow_html=True)
+        st.metric("CPU", f"{data['cpu_percent']:.1f}%")
     
     with col2:
-        st.markdown(get_simple_metric("RAM", f"{data['ram_percent']:.1f}%", get_ram_icon()), unsafe_allow_html=True)
+        st.metric("RAM", f"{data['ram_percent']:.1f}%")
     
     with col3:
-        st.markdown(get_simple_metric("Диск", f"{data['disk_percent']:.1f}%", get_disk_icon()), unsafe_allow_html=True)
+        st.metric("Диск", f"{data['disk_percent']:.1f}%")
     
     # AI аналіз
     st.markdown("### AI аналіз")
@@ -160,12 +160,8 @@ def main():
     init_my_app()
     
     # заголовок
-    col1, col2 = st.columns([1, 10])
-    with col1:
-        st.markdown(get_dashboard_icon(), unsafe_allow_html=True)
-    with col2:
-        st.title("SystemWatch Pro")
-        st.markdown("### Моя програма для моніторингу комп'ютера")
+    st.title("SystemWatch Pro")
+    st.markdown("### Моя програма для моніторингу комп'ютера")
     
     # навігація (без емоджі)
     with st.sidebar:
