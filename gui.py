@@ -6,8 +6,14 @@ TechCare - GUI модуль з Tkinter
 
 import tkinter as tk
 from tkinter import ttk, messagebox
-import winsound
 import threading
+
+# Безпечний імпорт winsound (тільки для Windows)
+try:
+    import winsound
+    HAS_WINSOUND = True
+except ImportError:
+    HAS_WINSOUND = False
 
 class TechCareGUI:
     def __init__(self, update_callback):
@@ -285,10 +291,12 @@ class TechCareGUI:
     
     def show_notification(self, title, message):
         """Показ сповіщення з звуком"""
-        try:
-            winsound.Beep(1000, 500)  # Звук 1000Hz на 500ms
-        except:
-            pass  # Якщо звук не працює
+        if HAS_WINSOUND:
+            try:
+                import winsound
+                winsound.Beep(1000, 500)  # Звук 1000Hz на 500ms
+            except:
+                pass  # Якщо звук не працює
         
         messagebox.showwarning(title, message)
     
