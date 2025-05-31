@@ -1,73 +1,80 @@
 # -*- coding: utf-8 -*-
 """
-TechCare AI - Data Manager Module
-Модуль управління даними та базою даних
+TechCare AI - PostgreSQL Data Manager Module
+Модуль управління даними та PostgreSQL базою даних
 """
 
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import pandas as pd
 from datetime import datetime, timedelta
 import json
 import os
 
 class DataManager:
-    def __init__(self, db_path='techcare_data.db'):
+    def __init__(self):
         """Ініціалізація менеджера даних"""
-        self.db_path = db_path
+        self.database_url = os.getenv('DATABASE_URL')
         self.init_database()
+    
+    def get_connection(self):
+        """Створення з'єднання з базою даних"""
+        return psycopg2.connect(self.database_url)
     
     def init_database(self):
         """Ініціалізація бази даних"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             # Таблиця системних даних
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS system_data (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     cpu_temp REAL,
                     cpu_percent REAL,
                     ram_percent REAL,
+                    ram_available BIGINT,
+                    ram_total BIGINT,
                     disk_percent REAL,
-                    uptime_seconds INTEGER,
-                    fan_speed REAL,
-                    additional_data TEXT
-                )
-            ''')
-            
-            # Таблиця досягнень користувача
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS user_achievements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    achievement_id TEXT UNIQUE,
-                    name TEXT,
-                    description TEXT,
-                    unlocked BOOLEAN DEFAULT FALSE,
-                    unlocked_date DATETIME,
-                    exp_reward INTEGER,
-                    progress INTEGER DEFAULT 0,
-                    target INTEGER DEFAULT 100
+                    disk_free BIGINT,
+                    disk_total BIGINT,
+                    network_bytes_sent BIGINT,
+                    network_bytes_recv BIGINT,
+                    battery_percent REAL,
+                    battery_plugged BOOLEAN,
+                    process_count INTEGER,
+                    boot_time TIMESTAMP
                 )
             ''')
             
             # Таблиця активності користувача
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS user_activity (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    date DATE,
-                    activity_type TEXT,
-                    exp_earned INTEGER,
+                CREATE TABLE IF NOT EXISTS user_activities (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    activity_type VARCHAR(50),
+                    experience_gained INTEGER DEFAULT 0,
                     description TEXT
                 )
             ''')
             
-            # Таблиця бенчмарків
+            # Таблиця досягнень
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS benchmarks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                CREATE TABLE IF NOT EXISTS achievements (
+                    id SERIAL PRIMARY KEY,
+                    achievement_id VARCHAR(50) UNIQUE,
+                    unlocked_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    experience_reward INTEGER DEFAULT 0
+                )
+            ''')
+            
+            # Таблиця результатів бенчмарків
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS benchmark_results (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     overall_score INTEGER,
                     cpu_score INTEGER,
                     ram_score INTEGER,
@@ -79,12 +86,12 @@ class DataManager:
                 )
             ''')
             
-            # Таблиця автоматичних ремонтів
+            # Таблиця історії ремонтів
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS auto_repairs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    issue_type TEXT,
+                CREATE TABLE IF NOT EXISTS repair_history (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    issue_type VARCHAR(100),
                     description TEXT,
                     action_taken TEXT,
                     success BOOLEAN,
@@ -92,31 +99,32 @@ class DataManager:
                 )
             ''')
             
-            # Таблиця розкладу завдань
+            # Таблиця запланованих завдань
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS scheduled_tasks (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT,
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(200),
                     description TEXT,
                     scheduled_date DATE,
                     scheduled_time TIME,
-                    priority TEXT,
-                    category TEXT,
+                    priority VARCHAR(20),
+                    category VARCHAR(50),
                     completed BOOLEAN DEFAULT FALSE,
-                    completed_date DATETIME,
-                    auto_generated BOOLEAN DEFAULT FALSE
+                    auto_generated BOOLEAN DEFAULT FALSE,
+                    completed_date TIMESTAMP
                 )
             ''')
             
             # Таблиця налаштувань
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS settings (
-                    key TEXT PRIMARY KEY,
+                    key VARCHAR(100) PRIMARY KEY,
                     value TEXT
                 )
             ''')
             
             conn.commit()
+            cursor.close()
             conn.close()
             
             # Ініціалізація базових даних
@@ -127,94 +135,67 @@ class DataManager:
     
     def init_default_data(self):
         """Ініціалізація базових даних"""
-        # Ініціалізація досягнень
-        default_achievements = [
-            {
-                'achievement_id': 'first_launch',
-                'name': 'Перший запуск',
-                'description': 'Запустіть TechCare AI вперше',
-                'exp_reward': 100,
-                'target': 1
-            },
-            {
-                'achievement_id': 'daily_user',
-                'name': 'Щоденний користувач',
-                'description': 'Використовуйте TechCare AI 7 днів поспіль',
-                'exp_reward': 500,
-                'target': 7
-            },
-            {
-                'achievement_id': 'system_optimizer',
-                'name': 'Оптимізатор системи',
-                'description': 'Виконайте 10 автоматичних оптимізацій',
-                'exp_reward': 300,
-                'target': 10
-            },
-            {
-                'achievement_id': 'benchmark_master',
-                'name': 'Майстер бенчмарку',
-                'description': 'Запустіть 5 бенчмарків',
-                'exp_reward': 250,
-                'target': 5
-            },
-            {
-                'achievement_id': 'health_monitor',
-                'name': 'Спостерігач здоров\'я',
-                'description': 'Підтримуйте здоров\'я ПК вище 90% протягом тижня',
-                'exp_reward': 400,
-                'target': 7
+        try:
+            # Додавання початкових налаштувань
+            default_settings = {
+                'user_level': '1',
+                'total_experience': '0',
+                'auto_repair_enabled': 'true',
+                'notifications_enabled': 'true'
             }
-        ]
-        
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        for achievement in default_achievements:
-            cursor.execute('''
-                INSERT OR IGNORE INTO user_achievements 
-                (achievement_id, name, description, exp_reward, target)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (
-                achievement['achievement_id'],
-                achievement['name'],
-                achievement['description'],
-                achievement['exp_reward'],
-                achievement['target']
-            ))
-        
-        conn.commit()
-        conn.close()
+            
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            for key, value in default_settings.items():
+                cursor.execute('''
+                    INSERT INTO settings (key, value) 
+                    VALUES (%s, %s) 
+                    ON CONFLICT (key) DO NOTHING
+                ''', (key, value))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            print(f"Помилка ініціалізації базових даних: {e}")
     
     def save_system_data(self, data):
         """Збереження системних даних"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
-            
-            # Підготовка додаткових даних
-            additional_data = {
-                'uptime_str': data.get('uptime_str', ''),
-                'timestamp': data.get('timestamp', datetime.now()).isoformat()
-            }
             
             cursor.execute('''
                 INSERT INTO system_data 
-                (cpu_temp, cpu_percent, ram_percent, disk_percent, uptime_seconds, fan_speed, additional_data)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (cpu_temp, cpu_percent, ram_percent, ram_available, ram_total,
+                 disk_percent, disk_free, disk_total, network_bytes_sent, 
+                 network_bytes_recv, battery_percent, battery_plugged, 
+                 process_count, boot_time)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 data.get('cpu_temp'),
                 data.get('cpu_percent'),
                 data.get('ram_percent'),
+                data.get('ram_available'),
+                data.get('ram_total'),
                 data.get('disk_percent'),
-                data.get('uptime_seconds'),
-                data.get('fan_speed'),
-                json.dumps(additional_data)
+                data.get('disk_free'),
+                data.get('disk_total'),
+                data.get('network_bytes_sent'),
+                data.get('network_bytes_recv'),
+                data.get('battery_percent'),
+                data.get('battery_plugged'),
+                data.get('process_count'),
+                data.get('boot_time')
             ))
             
             conn.commit()
+            cursor.close()
             conn.close()
             
-            # Очищення старих даних (залишаємо тільки останні 30 днів)
+            # Очищення старих даних
             self.cleanup_old_data()
             
         except Exception as e:
@@ -223,29 +204,22 @@ class DataManager:
     def get_historical_data(self, days=7, hours=None):
         """Отримання історичних даних"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             
             if hours:
-                since_time = datetime.now() - timedelta(hours=hours)
-                query = '''
-                    SELECT * FROM system_data 
-                    WHERE timestamp >= ?
-                    ORDER BY timestamp
-                '''
-                df = pd.read_sql_query(query, conn, params=[since_time])
+                time_filter = f"timestamp >= NOW() - INTERVAL '{hours} hours'"
             else:
-                since_date = datetime.now() - timedelta(days=days)
-                query = '''
-                    SELECT * FROM system_data 
-                    WHERE timestamp >= ?
-                    ORDER BY timestamp
-                '''
-                df = pd.read_sql_query(query, conn, params=[since_date])
+                time_filter = f"timestamp >= NOW() - INTERVAL '{days} days'"
             
-            if not df.empty:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
+            query = f'''
+                SELECT * FROM system_data 
+                WHERE {time_filter}
+                ORDER BY timestamp DESC
+            '''
             
+            df = pd.read_sql(query, conn)
             conn.close()
+            
             return df
             
         except Exception as e:
@@ -255,14 +229,17 @@ class DataManager:
     def cleanup_old_data(self):
         """Очищення старих даних"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
-            # Видалення даних старших 30 днів
-            cutoff_date = datetime.now() - timedelta(days=30)
-            cursor.execute('DELETE FROM system_data WHERE timestamp < ?', [cutoff_date])
+            # Видалення даних старших за 30 днів
+            cursor.execute('''
+                DELETE FROM system_data 
+                WHERE timestamp < NOW() - INTERVAL '30 days'
+            ''')
             
             conn.commit()
+            cursor.close()
             conn.close()
             
         except Exception as e:
@@ -271,112 +248,102 @@ class DataManager:
     def save_user_activity(self, activity_type, exp_earned, description=""):
         """Збереження активності користувача"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             cursor.execute('''
-                INSERT INTO user_activity (date, activity_type, exp_earned, description)
-                VALUES (DATE('now'), ?, ?, ?)
+                INSERT INTO user_activities (activity_type, experience_gained, description)
+                VALUES (%s, %s, %s)
             ''', (activity_type, exp_earned, description))
             
+            # Оновлення загального досвіду
+            cursor.execute('''
+                SELECT value FROM settings WHERE key = 'total_experience'
+            ''')
+            result = cursor.fetchone()
+            current_exp = int(result[0]) if result else 0
+            new_exp = current_exp + exp_earned
+            
+            cursor.execute('''
+                INSERT INTO settings (key, value) VALUES ('total_experience', %s)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            ''', (str(new_exp),))
+            
             conn.commit()
+            cursor.close()
             conn.close()
             
         except Exception as e:
-            print(f"Помилка збереження активності: {e}")
+            print(f"Помилка збереження активності користувача: {e}")
     
     def get_user_stats(self):
         """Отримання статистики користувача"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            conn = self.get_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Загальний досвід
-            cursor.execute('SELECT SUM(exp_earned) FROM user_activity')
-            total_exp = cursor.fetchone()[0] or 0
+            cursor.execute("SELECT value FROM settings WHERE key = 'total_experience'")
+            total_exp_result = cursor.fetchone()
+            total_experience = int(total_exp_result['value']) if total_exp_result else 0
             
-            # Досвід за сьогодні
-            cursor.execute('SELECT SUM(exp_earned) FROM user_activity WHERE date = DATE("now")')
-            today_exp = cursor.fetchone()[0] or 0
+            # Рівень користувача
+            level = (total_experience // 100) + 1
+            exp_for_next_level = (level * 100) - total_experience
             
             # Кількість досягнень
-            cursor.execute('SELECT COUNT(*) FROM user_achievements WHERE unlocked = 1')
-            achievements_unlocked = cursor.fetchone()[0] or 0
+            cursor.execute("SELECT COUNT(*) as count FROM achievements")
+            achievements_count = cursor.fetchone()['count']
             
-            cursor.execute('SELECT COUNT(*) FROM user_achievements')
-            total_achievements = cursor.fetchone()[0] or 0
-            
-            # Розрахунок рівня
-            level = max(1, int(total_exp / 1000) + 1)
-            current_level_exp = total_exp % 1000
-            exp_for_next_level = 1000
-            exp_to_next = exp_for_next_level - current_level_exp
-            
-            # Streak (дні поспіль)
+            # Активність за останні 30 днів
             cursor.execute('''
-                SELECT COUNT(DISTINCT date) FROM user_activity 
-                WHERE date >= DATE('now', '-7 days')
+                SELECT COUNT(*) as count FROM user_activities 
+                WHERE timestamp >= NOW() - INTERVAL '30 days'
             ''')
-            streak = cursor.fetchone()[0] or 0
+            recent_activities = cursor.fetchone()['count']
             
+            cursor.close()
             conn.close()
             
             return {
                 'level': level,
-                'total_exp': total_exp,
-                'today_exp': today_exp,
-                'current_level_exp': current_level_exp,
+                'total_experience': total_experience,
                 'exp_for_next_level': exp_for_next_level,
-                'exp_to_next': exp_to_next,
-                'achievements_unlocked': achievements_unlocked,
-                'total_achievements': total_achievements,
-                'streak': streak,
-                'streak_active': today_exp > 0,
-                'reward_points': total_exp // 100  # 1 бал за кожні 100 XP
+                'achievements_unlocked': achievements_count,
+                'recent_activities': recent_activities
             }
             
         except Exception as e:
-            print(f"Помилка отримання статистики: {e}")
+            print(f"Помилка отримання статистики користувача: {e}")
             return {
-                'level': 1, 'total_exp': 0, 'today_exp': 0,
-                'current_level_exp': 0, 'exp_for_next_level': 1000,
-                'exp_to_next': 1000, 'achievements_unlocked': 0,
-                'total_achievements': 0, 'streak': 0,
-                'streak_active': False, 'reward_points': 0
+                'level': 1,
+                'total_experience': 0,
+                'exp_for_next_level': 100,
+                'achievements_unlocked': 0,
+                'recent_activities': 0
             }
     
     def unlock_achievement(self, achievement_id):
         """Відкриття досягнення"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
-            # Перевірка чи досягнення вже відкрито
-            cursor.execute('SELECT unlocked FROM user_achievements WHERE achievement_id = ?', [achievement_id])
-            result = cursor.fetchone()
+            cursor.execute('''
+                INSERT INTO achievements (achievement_id, experience_reward)
+                VALUES (%s, %s)
+                ON CONFLICT (achievement_id) DO NOTHING
+            ''', (achievement_id, 50))
             
-            if result and not result[0]:
-                # Відкриття досягнення
-                cursor.execute('''
-                    UPDATE user_achievements 
-                    SET unlocked = 1, unlocked_date = CURRENT_TIMESTAMP 
-                    WHERE achievement_id = ?
-                ''', [achievement_id])
-                
-                # Отримання нагороди
-                cursor.execute('SELECT exp_reward, name FROM user_achievements WHERE achievement_id = ?', [achievement_id])
-                reward_data = cursor.fetchone()
-                
-                if reward_data:
-                    exp_reward, name = reward_data
-                    self.save_user_activity('achievement', exp_reward, f'Досягнення: {name}')
-                
-                conn.commit()
-                conn.close()
-                return True
+            if cursor.rowcount > 0:
+                # Додати досвід за досягнення
+                self.save_user_activity('achievement', 50, f'Відкрито досягнення: {achievement_id}')
             
+            conn.commit()
+            cursor.close()
             conn.close()
-            return False
+            
+            return cursor.rowcount > 0
             
         except Exception as e:
             print(f"Помилка відкриття досягнення: {e}")
@@ -385,43 +352,42 @@ class DataManager:
     def save_benchmark_result(self, results):
         """Збереження результатів бенчмарку"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             cursor.execute('''
-                INSERT INTO benchmarks 
-                (overall_score, cpu_score, ram_score, disk_score, network_score, stability_score, efficiency_score, detailed_results)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO benchmark_results 
+                (overall_score, cpu_score, ram_score, disk_score, 
+                 network_score, stability_score, efficiency_score, detailed_results)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
-                results.get('overall_score', 0),
-                results.get('cpu_score', 0),
-                results.get('ram_score', 0),
-                results.get('disk_score', 0),
-                results.get('network_score', 0),
-                results.get('stability_score', 0),
-                results.get('efficiency_score', 0),
+                results.get('overall_score'),
+                results.get('cpu_score'),
+                results.get('ram_score'),
+                results.get('disk_score'),
+                results.get('network_score'),
+                results.get('stability_score'),
+                results.get('efficiency_score'),
                 json.dumps(results.get('detailed_results', {}))
             ))
             
             conn.commit()
+            cursor.close()
             conn.close()
             
         except Exception as e:
-            print(f"Помилка збереження бенчмарку: {e}")
+            print(f"Помилка збереження результатів бенчмарку: {e}")
     
     def get_benchmark_history(self):
         """Отримання історії бенчмарків"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             
-            df = pd.read_sql_query('''
-                SELECT * FROM benchmarks 
+            df = pd.read_sql('''
+                SELECT * FROM benchmark_results 
                 ORDER BY timestamp DESC 
-                LIMIT 30
+                LIMIT 10
             ''', conn)
-            
-            if not df.empty:
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
             
             conn.close()
             return df
@@ -433,104 +399,90 @@ class DataManager:
     def save_repair_record(self, repair_data):
         """Збереження запису про ремонт"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             cursor.execute('''
-                INSERT INTO auto_repairs 
+                INSERT INTO repair_history 
                 (issue_type, description, action_taken, success, result)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
             ''', (
-                repair_data.get('issue_type', ''),
-                repair_data.get('description', ''),
-                repair_data.get('action_taken', ''),
-                repair_data.get('success', False),
-                repair_data.get('result', '')
+                repair_data.get('issue_type'),
+                repair_data.get('description'),
+                repair_data.get('action_taken'),
+                repair_data.get('success'),
+                repair_data.get('result')
             ))
             
             conn.commit()
+            cursor.close()
             conn.close()
             
         except Exception as e:
-            print(f"Помилка збереження запису ремонту: {e}")
+            print(f"Помилка збереження запису про ремонт: {e}")
     
     def get_repair_history(self):
         """Отримання історії ремонтів"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             
-            query = '''
-                SELECT * FROM auto_repairs 
+            df = pd.read_sql('''
+                SELECT * FROM repair_history 
                 ORDER BY timestamp DESC 
-                LIMIT 50
-            '''
-            
-            cursor = conn.cursor()
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            
-            repairs = []
-            for row in rows:
-                repairs.append({
-                    'id': row[0],
-                    'timestamp': datetime.fromisoformat(row[1]),
-                    'issue_type': row[2],
-                    'description': row[3],
-                    'action_taken': row[4],
-                    'success': bool(row[5]),
-                    'result': row[6]
-                })
+                LIMIT 20
+            ''', conn)
             
             conn.close()
-            return repairs
+            return df
             
         except Exception as e:
             print(f"Помилка отримання історії ремонтів: {e}")
-            return []
+            return pd.DataFrame()
     
     def save_scheduled_task(self, task_data):
         """Збереження запланованого завдання"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             cursor.execute('''
                 INSERT INTO scheduled_tasks 
-                (title, description, scheduled_date, scheduled_time, priority, category, auto_generated)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (title, description, scheduled_date, scheduled_time, 
+                 priority, category, auto_generated)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (
-                task_data.get('title', ''),
-                task_data.get('description', ''),
-                task_data.get('date', ''),
-                task_data.get('time', ''),
-                task_data.get('priority', 'medium'),
-                task_data.get('category', 'general'),
+                task_data.get('title'),
+                task_data.get('description'),
+                task_data.get('date'),
+                task_data.get('time'),
+                task_data.get('priority'),
+                task_data.get('category'),
                 task_data.get('auto_generated', False)
             ))
             
             conn.commit()
+            cursor.close()
             conn.close()
             
             return True
             
         except Exception as e:
-            print(f"Помилка збереження завдання: {e}")
+            print(f"Помилка збереження запланованого завдання: {e}")
             return False
     
     def get_setting(self, key, default_value=None):
         """Отримання налаштування"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('SELECT value FROM settings WHERE key = ?', [key])
+            cursor.execute('SELECT value FROM settings WHERE key = %s', (key,))
             result = cursor.fetchone()
             
+            cursor.close()
             conn.close()
             
-            if result:
-                return result[0]
-            return default_value
+            return result[0] if result else default_value
             
         except Exception as e:
             print(f"Помилка отримання налаштування: {e}")
@@ -539,15 +491,16 @@ class DataManager:
     def set_setting(self, key, value):
         """Збереження налаштування"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_connection()
             cursor = conn.cursor()
             
             cursor.execute('''
-                INSERT OR REPLACE INTO settings (key, value)
-                VALUES (?, ?)
-            ''', [key, str(value)])
+                INSERT INTO settings (key, value) VALUES (%s, %s)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            ''', (key, str(value)))
             
             conn.commit()
+            cursor.close()
             conn.close()
             
         except Exception as e:

@@ -4,11 +4,13 @@ TechCare AI - Maintenance Scheduler Module
 Модуль планувальника обслуговування системи
 """
 
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from datetime import datetime, timedelta, time
 import calendar
 import threading
 import time as time_module
+import os
 
 class MaintenanceScheduler:
     def __init__(self, data_manager):
@@ -52,7 +54,7 @@ class MaintenanceScheduler:
         """Ініціалізація стандартних завдань"""
         try:
             # Перевірка чи є вже створені автоматичні завдання
-            conn = sqlite3.connect(self.data_manager.db_path)
+            conn = psycopg2.connect(os.getenv('DATABASE_URL'))
             cursor = conn.cursor()
             
             cursor.execute('SELECT COUNT(*) FROM scheduled_tasks WHERE auto_generated = 1')
