@@ -73,3 +73,23 @@ class SimpleRepair:
         """Виправлення проблем з диском"""
         # простий спосіб - нічого не робимо
         return True
+    
+    def kill_high_cpu_processes(self):
+        """Завершення процесів з високим CPU > 80%"""
+        try:
+            killed_processes = []
+            for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+                try:
+                    # Перевіряємо CPU процесу
+                    if proc.info['cpu_percent'] and proc.info['cpu_percent'] > 80:
+                        # Не чіпаємо системні процеси
+                        if proc.info['name'] not in ['System', 'svchost.exe', 'explorer.exe']:
+                            proc.terminate()
+                            killed_processes.append(proc.info['name'])
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            return killed_processes
+        except Exception as e:
+            print(f"Помилка завершення процесів: {e}")
+            return []

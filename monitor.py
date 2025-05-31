@@ -6,6 +6,7 @@
 
 import psutil
 import platform
+import time
 
 def get_system_data():
     """Отримуємо основні дані про систему"""
@@ -27,6 +28,37 @@ def get_system_data():
         data['disk_total'] = disk.total
         data['disk_used'] = disk.used
         data['disk_free'] = disk.free
+        
+        # Температура (через датчики або заміна CPU > 80%)
+        try:
+            temps = psutil.sensors_temperatures()
+            if temps:
+                for name, entries in temps.items():
+                    if entries:
+                        data['temperature'] = entries[0].current
+                        break
+            else:
+                # Заміна: якщо CPU > 80% то температура "висока"
+                data['temperature'] = 85 if data['cpu_percent'] > 80 else 45
+        except:
+            data['temperature'] = 85 if data['cpu_percent'] > 80 else 45
+        
+        # Швидкість вентилятора
+        try:
+            fans = psutil.sensors_fans()
+            if fans:
+                for name, entries in fans.items():
+                    if entries:
+                        data['fan_speed'] = entries[0].current
+                        break
+            else:
+                data['fan_speed'] = None
+        except:
+            data['fan_speed'] = None
+        
+        # Час роботи системи
+        boot_time = psutil.boot_time()
+        data['uptime_hours'] = (time.time() - boot_time) / 3600
         
         # Температура (якщо є)
         try:
