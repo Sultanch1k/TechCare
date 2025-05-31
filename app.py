@@ -480,7 +480,7 @@ def show_gamification():
                         else:
                             st.error(f"❌ {result['message']}")
                 else:
-                    st.button("🔒 Недостатньо балів", disabled=True)
+                    st.button("🔒 Недостатньо балів", disabled=True, key=f"disabled_{reward['id']}")
     
     with tab4:
         st.subheader("🏆 Таблиця лідерів")
@@ -539,8 +539,26 @@ def show_benchmarking():
     
     # Радарна діаграма
     categories = ['CPU', 'RAM', 'Диск', 'Мережа', 'Стабільність', 'Ефективність']
-    your_scores = [benchmark_data[cat.lower()]['your_score'] for cat in categories]
-    avg_scores = [benchmark_data[cat.lower()]['average_score'] for cat in categories]
+    category_mapping = {
+        'CPU': 'cpu',
+        'RAM': 'ram', 
+        'Диск': 'disk',
+        'Мережа': 'network',
+        'Стабільність': 'stability',
+        'Ефективність': 'efficiency'
+    }
+    
+    your_scores = []
+    avg_scores = []
+    
+    for cat in categories:
+        key = category_mapping[cat]
+        if key in benchmark_data:
+            your_scores.append(benchmark_data[key]['your_score'])
+            avg_scores.append(benchmark_data[key]['average_score'])
+        else:
+            your_scores.append(50)  # Резервне значення
+            avg_scores.append(50)
     
     fig = go.Figure()
     

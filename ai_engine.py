@@ -372,7 +372,8 @@ class AIEngine:
                 })
         
         # Рекомендації на основі трендів
-        cpu_metric = current_data.get('cpu_temp', current_data.get('cpu_percent', 0))
+        cpu_metric = current_data.get('cpu_temp') or current_data.get('cpu_percent') or 0
+        cpu_metric = float(cpu_metric) if cpu_metric is not None else 0
         
         if cpu_metric > 75:
             recommendations.append({
