@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-SystemWatch Pro - Програма для моніторингу комп'ютера
-Автор: [Твоє ім'я]
-Дипломна робота 2024
+SystemWatch Pro - Моя дипломна програма
+Написав сам для контролю комп'ютера
+TODO: додати більше функцій коли буде час
 """
 
 import streamlit as st
@@ -14,10 +14,12 @@ import time
 import threading
 import numpy as np
 
-# Імпорт модулів
+# мої модулі
 from monitor import get_system_data
 from ai_engine import AIEngine
 from data_manager import DataManager
+from icons import *
+from student_style import *
 from gamification import GamificationSystem
 from benchmarking import BenchmarkingSystem
 from auto_repair import AutoRepairSystem
@@ -38,10 +40,9 @@ if 'initialized' not in st.session_state:
     st.session_state.last_update = 0
 
 def main():
-    """Головна функція додатка"""
+    """Головна функція моєї програми"""
     st.set_page_config(
-        page_title="TechCare AI",
-        page_icon="🖥️",
+        page_title="SystemWatch Pro",
         layout="wide",
         initial_sidebar_state="auto"
     )
