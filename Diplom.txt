@@ -367,16 +367,15 @@ class TaskScheduler:
 
 Останній день - збираєш все разом.
 
-10.1 Оновлюєш app.py:
+10.1 Створюєш my_app.py:
 ```python
 import streamlit as st
 from monitor import get_system_data
 from data_manager import DataManager
-from ai_engine import AIEngine
-from auto_repair import AutoRepair
-from gamification import GamificationSystem
-from benchmarking import BenchmarkSystem
-from scheduler import TaskScheduler
+from ai import SimpleAI
+from repair import SimpleRepair
+from achievements import SimpleAchievements
+from tests import SimpleTests
 
 def main():
     st.set_page_config(
@@ -385,52 +384,49 @@ def main():
     )
     
     st.title("SystemWatch Pro")
-    st.markdown("**Програма для моніторингу комп'ютера**")
+    st.markdown("### Моя програма для моніторингу комп'ютера")
     
-    # Ініціалізація
-    data_manager = DataManager()
-    ai_engine = AIEngine(data_manager)
-    auto_repair = AutoRepair()
+    # ініціалізація
+    if 'data_manager' not in st.session_state:
+        st.session_state.data_manager = DataManager()
+        st.session_state.ai = SimpleAI(st.session_state.data_manager)
+        st.session_state.repair = SimpleRepair()
     
-    # Бічна панель
-    page = st.sidebar.selectbox("Оберіть розділ:", [
-        "Головна", "Аналітика", "Ремонт", "Досягнення", 
-        "Тести", "Розклад"
-    ])
+    # меню
+    with st.sidebar:
+        page = st.selectbox("Оберіть розділ:", [
+            "Головна", "AI Аналітика", "Ремонт", "Досягнення", "Тести"
+        ])
     
     if page == "Головна":
-        show_dashboard(data_manager, ai_engine)
-    elif page == "Аналітика":
-        show_analytics(ai_engine)
+        show_main_page()
+    elif page == "AI Аналітика":
+        show_ai_page()
     # і так далі...
 
-def show_dashboard(data_manager, ai_engine):
-    st.header("Головна панель")
+def show_main_page():
+    st.markdown("## Головна панель")
     
-    # Отримуємо дані
+    # отримуємо дані
     data = get_system_data()
     
-    # Показуємо метрики
+    # показуємо метрики
     col1, col2, col3 = st.columns(3)
-    
     with col1:
-        st.metric("CPU", f"{data['cpu_percent']}%")
+        st.metric("CPU", f"{data['cpu_percent']:.1f}%")
     with col2:
-        st.metric("RAM", f"{data['ram_percent']}%")
+        st.metric("RAM", f"{data['ram_percent']:.1f}%")
     with col3:
         st.metric("Диск", f"{data['disk_percent']:.1f}%")
     
     # AI аналіз
-    warnings = ai_engine.predict_problems(data)
-    if warnings:
+    warnings = st.session_state.ai.predict_system_health(data)
+    if warnings.get('warnings'):
         st.warning("Знайдені проблеми:")
-        for warning in warnings:
+        for warning in warnings['warnings']:
             st.write(f"• {warning}")
     else:
         st.success("Все працює нормально!")
-    
-    # Зберігаємо дані
-    data_manager.save_data(data)
     
 if __name__ == "__main__":
     main()
@@ -485,22 +481,42 @@ A: Так, можна додати моніторинг мережі, інтег
 Q: Як забезпечується безпека даних?
 A: Всі дані зберігаються локально в PostgreSQL, немає передачі в інтернет, використовуються стандартні методи захисту БД.
 
+=== ФІНАЛЬНА СТРУКТУРА ПРОГРАМИ ===
+
+Твої файли в кінцевому варіанті:
+- my_app.py - головний файл програми
+- monitor.py - збирає дані про систему  
+- ai.py - штучний інтелект для аналізу
+- repair.py - знаходить та виправляє проблеми
+- achievements.py - система очок та рівнів
+- tests.py - тести швидкості
+- data_manager.py - робота з базою даних
+- Diplom.txt - цей файл з планом
+
+=== ЗАПУСК ПРОГРАМИ ===
+
+Команда для запуску:
+```
+streamlit run my_app.py --server.port 5000
+```
+
+Потім відкрий браузер на http://localhost:5000
+
 === ВИСНОВКИ ===
 
-Ти створив повноцінну систему моніторингу що:
-✓ Збирає дані про систему в реальному часі
-✓ Використовує машинне навчання для прогнозів
-✓ Автоматично виправляє проблеми
-✓ Мотивує користувача через геймифікацію
-✓ Має сучасний веб-інтерфейс
-✓ Зберігає всі дані в надійній базі
+Ти зробив робочу програму що:
+✓ Показує стан комп'ютера (CPU, RAM, диск)
+✓ Використовує штучний інтелект для аналізу
+✓ Знаходить проблеми та пропонує їх вирішити
+✓ Має систему досягнень як в іграх
+✓ Тестує швидкість системи
+✓ Зберігає дані в PostgreSQL
 
-Це солідна дипломна робота що демонструє знання:
-- Програмування на Python
-- Роботи з базами даних
-- Машинного навчання
-- Веб-розробки
-- Системного адміністрування
+Це нормальна дипломна робота що показує твої знання:
+- Python програмування
+- Робота з базами даних
+- Веб-інтерфейси через Streamlit
+- Основи машинного навчання
 
 Удачі на захисті!
 
