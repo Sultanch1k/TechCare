@@ -299,13 +299,39 @@ def show_dashboard():
     # Адаптивна сітка метрик на основі режиму екрану
     mobile_mode = st.session_state.get('mobile_mode', False)
     
+    # Застосування мобільних стилів при потребі
     if mobile_mode:
-        # Для мобільних: 2x2 сітка
-        col1, col2 = st.columns(2)
-        col3, col4 = st.columns(2)
-    else:
-        # Для десктопу: 4 колонки в ряд
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+        apply_mobile_styles()
+    
+    # Створення адаптивного макету
+    adaptive_layout = AdaptiveLayout(mobile_mode)
+    
+    # Підготовка даних для метрик
+    metrics_data = [
+        {
+            'label': '🌡️ Температура/CPU',
+            'value': f"{float(system_data.get('cpu_temp') or system_data.get('cpu_percent') or 0):.1f}{'°C' if system_data.get('cpu_temp') else '%'}",
+            'delta': predictions.get('temp_trend', 0)
+        },
+        {
+            'label': '💾 RAM',
+            'value': f"{float(system_data.get('ram_percent', 0)):.1f}%",
+            'delta': predictions.get('ram_trend', 0)
+        },
+        {
+            'label': '💿 Диск',
+            'value': f"{float(system_data.get('disk_percent', 0)):.1f}%",
+            'delta': predictions.get('disk_trend', 0)
+        },
+        {
+            'label': '❤️ Здоров\'я ПК',
+            'value': f"{predictions.get('health_score', 85)}/100",
+            'delta': predictions.get('health_trend', 0)
+        }
+    ]
+    
+    # Відображення метрик через адаптивний компонент
+    adaptive_layout.create_metric_grid(metrics_data)
     
     with col1:
         temp_value = system_data.get('cpu_temp') or system_data.get('cpu_percent') or 0
