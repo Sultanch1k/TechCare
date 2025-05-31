@@ -14,10 +14,10 @@ import time
 # мої модулі
 from monitor import get_system_data
 from data_manager import DataManager
-from ai_engine import AIEngine
-from gamification import GamificationSystem
-from benchmarking import BenchmarkingSystem
-from auto_repair import AutoRepairSystem
+from simple_ai import SimpleAI
+from simple_achievements import SimpleAchievements
+from simple_tests import SimpleTests
+from simple_repair import SimpleRepair
 
 # мої іконки
 from icons import *
@@ -28,10 +28,10 @@ def init_my_app():
     # TODO: покращити це пізніше
     if 'data_manager' not in st.session_state:
         st.session_state.data_manager = DataManager()
-        st.session_state.ai_engine = AIEngine(st.session_state.data_manager)
-        st.session_state.gamification = GamificationSystem(st.session_state.data_manager)
-        st.session_state.benchmarking = BenchmarkingSystem(st.session_state.data_manager)
-        st.session_state.auto_repair = AutoRepairSystem()
+        st.session_state.ai_engine = SimpleAI(st.session_state.data_manager)
+        st.session_state.achievements = SimpleAchievements(st.session_state.data_manager)
+        st.session_state.tests = SimpleTests(st.session_state.data_manager)
+        st.session_state.repair = SimpleRepair()
 
 def show_main_page():
     """Головна сторінка"""
