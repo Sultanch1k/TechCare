@@ -22,6 +22,7 @@ from benchmarking import BenchmarkingSystem
 from auto_repair import AutoRepairSystem
 from scheduler import MaintenanceScheduler
 from advanced_monitor import AdvancedSystemMonitor
+from adaptive_components import AdaptiveLayout, apply_mobile_styles, responsive_dataframe
 
 # Ініціалізація сесійного стану
 if 'initialized' not in st.session_state:
@@ -41,17 +42,181 @@ def main():
         page_title="TechCare AI",
         page_icon="🖥️",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="auto"
     )
+    
+    # Адаптивні CSS стилі
+    st.markdown("""
+    <style>
+    /* Адаптивність для мобільних пристроїв */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        
+        .stMetric {
+            background: linear-gradient(90deg, #f0f2f6 0%, #ffffff 100%);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+            border: 1px solid #e6e9ef;
+        }
+        
+        .sidebar .sidebar-content {
+            width: 100% !important;
+        }
+        
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        h2 {
+            font-size: 1.25rem !important;
+        }
+        
+        h3 {
+            font-size: 1.1rem !important;
+        }
+    }
+    
+    /* Адаптивність для планшетів */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .main .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        .stMetric {
+            padding: 0.75rem;
+            margin: 0.375rem 0;
+        }
+    }
+    
+    /* Стилі для покращеного вигляду */
+    .stMetric {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 0.5rem 0;
+        transition: transform 0.2s;
+    }
+    
+    .stMetric:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stMetric > div {
+        color: white !important;
+    }
+    
+    .stMetric label {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 600;
+    }
+    
+    .stMetric [data-testid="metric-value"] {
+        color: white !important;
+        font-size: 1.5rem !important;
+        font-weight: 700;
+    }
+    
+    /* Адаптивна сітка */
+    .metric-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    
+    /* Стилі для карток */
+    .info-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
+    }
+    
+    /* Адаптивні кнопки */
+    .stButton > button {
+        width: 100%;
+        border-radius: 8px;
+        border: none;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.3s;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Адаптивні таби */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        min-width: auto;
+        padding: 0.5rem 1rem;
+        white-space: nowrap;
+    }
+    
+    /* Респонсивні графіки */
+    .js-plotly-plot {
+        width: 100% !important;
+    }
+    
+    .plotly {
+        width: 100% !important;
+    }
+    
+    /* Мобільна навігація */
+    @media (max-width: 768px) {
+        .stTabs [data-baseweb="tab-list"] {
+            justify-content: center;
+            overflow-x: auto;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     # Заголовок
     st.title("🖥️ TechCare AI")
     st.markdown("**Інтелектуальна система моніторингу та прогнозування здоров'я ПК**")
     
-    # Бічна панель навігації
-    with st.sidebar:
-        st.header("🎯 Навігація")
-        page = st.selectbox(
+    # Адаптивна навігація
+    # Визначення розміру екрану
+    screen_size = st.selectbox(
+        "📱 Розмір екрану:",
+        ["🖥️ Десктоп", "📱 Мобільний", "📱 Планшет"],
+        index=0,
+        help="Оберіть для оптимального відображення"
+    )
+    
+    mobile_mode = screen_size in ["📱 Мобільний", "📱 Планшет"]
+    st.session_state['mobile_mode'] = mobile_mode
+    
+    if mobile_mode:
+        # Мобільна навігація у вигляді табів
+        st.markdown("### 🎯 Навігація")
+        page = st.radio(
             "Оберіть розділ:",
             [
                 "📊 Дашборд",
@@ -61,8 +226,25 @@ def main():
                 "📈 Бенчмаркінг",
                 "📅 Розклад",
                 "📋 Детальний аналіз"
-            ]
+            ],
+            horizontal=True if screen_size == "📱 Планшет" else False
         )
+    else:
+        # Десктопна навігація
+        with st.sidebar:
+            st.header("🎯 Навігація")
+            page = st.selectbox(
+                "Оберіть розділ:",
+                [
+                    "📊 Дашборд",
+                    "🤖 AI Аналітика", 
+                    "🔧 Авто-ремонт",
+                    "🏆 Геймифікація",
+                    "📈 Бенчмаркінг",
+                    "📅 Розклад",
+                    "📋 Детальний аналіз"
+                ]
+            )
         
         # Автоматичне оновлення
         auto_refresh = st.checkbox("Авто-оновлення (30с)", value=False)
@@ -110,8 +292,20 @@ def show_dashboard():
         system_data = get_system_data()
         predictions = getattr(st.session_state, 'predictions', {})
     
-    # Основні метрики
-    col1, col2, col3, col4 = st.columns(4)
+    # Основні метрики - адаптивна сітка
+    # На мобільних пристроях буде 2 колонки, на планшетах - 3, на десктопі - 4
+    is_mobile = st.session_state.get('is_mobile', False)
+    
+    # Адаптивна сітка метрик на основі режиму екрану
+    mobile_mode = st.session_state.get('mobile_mode', False)
+    
+    if mobile_mode:
+        # Для мобільних: 2x2 сітка
+        col1, col2 = st.columns(2)
+        col3, col4 = st.columns(2)
+    else:
+        # Для десктопу: 4 колонки в ряд
+        col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     
     with col1:
         temp_value = system_data.get('cpu_temp') or system_data.get('cpu_percent') or 0
