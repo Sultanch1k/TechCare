@@ -614,7 +614,7 @@ def show_benchmarking():
     if not history_data.empty:
         fig_history = px.line(
             history_data,
-            x='date',
+            x='timestamp',
             y='overall_score',
             title="Зміна загального рейтингу в часі"
         )
