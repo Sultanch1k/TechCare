@@ -481,26 +481,36 @@ A: Так, можна додати моніторинг мережі, інтег
 Q: Як забезпечується безпека даних?
 A: Всі дані зберігаються локально в PostgreSQL, немає передачі в інтернет, використовуються стандартні методи захисту БД.
 
-=== ФІНАЛЬНА СТРУКТУРА ПРОГРАМИ ===
+=== ФІНАЛЬНА СТРУКТУРА TECHCARE DESKTOP ===
 
 Твої файли в кінцевому варіанті:
-- my_app.py - головний файл програми
-- monitor.py - збирає дані про систему  
-- ai.py - штучний інтелект для аналізу
-- repair.py - знаходить та виправляє проблеми
-- achievements.py - система очок та рівнів
-- tests.py - тести швидкості
-- data_manager.py - робота з базою даних
+- main.py - головний файл desktop програми
+- gui.py - Tkinter інтерфейс з вкладками
+- monitor.py - збирає дані про систему (CPU, RAM, диск, температура, час роботи)
+- ai.py - штучний інтелект з часовими лічильниками
+- repair.py - діагностика та виправлення проблем + завершення процесів
+- achievements.py - система досягнень з PostgreSQL
+- tests.py - тести швидкості CPU, RAM, диска
+- data_manager.py - робота з PostgreSQL базою
 - Diplom.txt - цей файл з планом
 
-=== ЗАПУСК ПРОГРАМИ ===
+=== ЗАПУСК DESKTOP ПРОГРАМИ ===
+
+Встановлення залежностей:
+```
+pip install psutil schedule tkinter winsound psycopg2-binary scikit-learn numpy
+```
 
 Команда для запуску:
 ```
-streamlit run my_app.py --server.port 5000
+python main.py
 ```
 
-Потім відкрий браузер на http://localhost:5000
+Створення .exe файлу:
+```
+pip install pyinstaller
+pyinstaller --onefile main.py
+```
 
 === ВИСНОВКИ ===
 

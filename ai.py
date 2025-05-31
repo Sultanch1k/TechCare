@@ -21,7 +21,10 @@ class SimpleAI:
         current_time = time.time()
         
         # Температура > 70°C або CPU > 80% протягом 30 хвилин
-        temp_high = data.get('temperature', 45) > 70 or data['cpu_percent'] > 80
+        temperature = data.get('temperature', 45)
+        if temperature is None:
+            temperature = 45
+        temp_high = temperature > 70 or data['cpu_percent'] > 80
         if temp_high:
             if self.state['high_temp_start'] is None:
                 self.state['high_temp_start'] = current_time
@@ -61,6 +64,8 @@ class SimpleAI:
         health_score -= data['disk_percent'] * 0.2
         # Враховуємо температуру
         temp = data.get('temperature', 45)
+        if temp is None:
+            temp = 45
         if temp > 70:
             health_score -= 20
         elif temp > 60:
