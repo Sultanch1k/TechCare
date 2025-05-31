@@ -12,7 +12,7 @@ from datetime import datetime
 import time
 
 # мої модулі
-from monitor import get_system_data
+from simple_monitor import get_system_data
 from data_manager import DataManager
 from simple_ai import SimpleAI
 from simple_achievements import SimpleAchievements
@@ -94,14 +94,14 @@ def show_repair_page():
     
     if st.button("Діагностувати систему"):
         with st.spinner("Шукаю проблеми..."):
-            issues = st.session_state.auto_repair.diagnose_system()
+            issues = st.session_state.repair.diagnose_system()
         
         if issues:
             st.warning(f"Знайдено {len(issues)} проблем:")
             for i, issue in enumerate(issues, 1):
                 st.write(f"{i}. {issue['description']}")
                 if issue.get('fixable') and st.button(f"Виправити #{i}"):
-                    result = st.session_state.auto_repair.auto_fix_issue(issue)
+                    result = st.session_state.repair.auto_fix_issue(issue)
                     if result:
                         st.success("Виправлено!")
                     else:
@@ -137,7 +137,7 @@ def show_tests_page():
     
     if st.button("Запустити тест"):
         with st.spinner("Тестую..."):
-            results = st.session_state.benchmarking.run_benchmark()
+            results = st.session_state.tests.run_benchmark()
         
         st.success("Тест завершено!")
         
