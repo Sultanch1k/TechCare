@@ -420,7 +420,7 @@ class MaintenanceScheduler:
                 cursor.execute('''
                     INSERT INTO scheduled_tasks 
                     (title, description, scheduled_date, scheduled_time, priority, category, auto_generated)
-                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ''', (
                     task['title'],
                     task['description'],

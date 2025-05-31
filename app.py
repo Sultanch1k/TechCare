@@ -333,42 +333,6 @@ def show_dashboard():
     # Відображення метрик через адаптивний компонент
     adaptive_layout.create_metric_grid(metrics_data)
     
-    with col1:
-        temp_value = system_data.get('cpu_temp') or system_data.get('cpu_percent') or 0
-        temp_value = float(temp_value) if temp_value is not None else 0
-        temp_unit = "°C" if system_data.get('cpu_temp') else "%"
-        st.metric(
-            label="🌡️ Температура/CPU",
-            value=f"{temp_value:.1f}{temp_unit}",
-            delta=predictions.get('temp_trend', 0)
-        )
-    
-    with col2:
-        ram_percent = system_data.get('ram_percent', 0)
-        ram_percent = float(ram_percent) if ram_percent is not None else 0
-        st.metric(
-            label="💾 RAM",
-            value=f"{ram_percent:.1f}%",
-            delta=predictions.get('ram_trend', 0)
-        )
-    
-    with col3:
-        disk_percent = system_data.get('disk_percent', 0)
-        disk_percent = float(disk_percent) if disk_percent is not None else 0
-        st.metric(
-            label="💿 Диск",
-            value=f"{disk_percent:.1f}%",
-            delta=predictions.get('disk_trend', 0)
-        )
-    
-    with col4:
-        health_score = predictions.get('health_score', 85)
-        st.metric(
-            label="❤️ Здоров'я ПК",
-            value=f"{health_score}/100",
-            delta=predictions.get('health_trend', 0)
-        )
-    
     # AI Попередження
     if predictions.get('warnings'):
         st.warning("⚠️ AI виявив потенційні проблеми:")
