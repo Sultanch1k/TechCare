@@ -57,7 +57,7 @@ class MaintenanceScheduler:
             conn = psycopg2.connect(os.getenv('DATABASE_URL'))
             cursor = conn.cursor()
             
-            cursor.execute('SELECT COUNT(*) FROM scheduled_tasks WHERE auto_generated = 1')
+            cursor.execute('SELECT COUNT(*) FROM scheduled_tasks WHERE auto_generated = true')
             auto_tasks_count = cursor.fetchone()[0]
             
             if auto_tasks_count == 0:
