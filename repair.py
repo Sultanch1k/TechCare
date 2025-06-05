@@ -18,30 +18,25 @@ class SimpleRepair:
         # перевіряємо CPU
         cpu = psutil.cpu_percent(interval=1)
         if cpu > 80:
-            problems.append({
-                'description': f'Високе навантаження CPU: {cpu:.1f}%',
-                'fixable': True,
-                'type': 'cpu'
-            })
+            problems.append(f'Високе навантаження CPU: {cpu:.1f}%')
         
         # перевіряємо RAM
         ram = psutil.virtual_memory()
         if ram.percent > 85:
-            problems.append({
-                'description': f'Мало вільної пам\'яті: {ram.percent:.1f}%',
-                'fixable': True,
-                'type': 'ram'
-            })
+            problems.append(f'Мало вільної пам\'яті: {ram.percent:.1f}%')
         
         # перевіряємо диск
         disk = psutil.disk_usage('/')
         disk_percent = (disk.used / disk.total) * 100
         if disk_percent > 90:
-            problems.append({
-                'description': f'Диск майже заповнений: {disk_percent:.1f}%',
-                'fixable': True,
-                'type': 'disk'
-            })
+            problems.append(f'Диск майже заповнений: {disk_percent:.1f}%')
+        
+        # додаткові перевірки
+        if cpu > 50:
+            problems.append('CPU навантаження вище норми')
+        
+        if ram.percent > 70:
+            problems.append('Рекомендується очистити RAM')
         
         return problems
     

@@ -1,201 +1,214 @@
 # -*- coding: utf-8 -*-
 """
 TechCare - Desktop застосунок для моніторингу ПК
-Головний файл з інтеграцією всіх модулів
-
-Для локального запуску:
-1. Встанови Python 3.11 і бібліотеки: pip install psutil schedule tkinter winsound psycopg2-binary scikit-learn numpy
-2. Запусти: python main.py
-
-Для .exe:
-1. Встанови PyInstaller: pip install pyinstaller
-2. Скомпілюй: pyinstaller --onefile main.py
 """
 
 import tkinter as tk
 import threading
 import time
+import sys
+import multiprocessing
+import ctypes
+import ctypes.wintypes
 
-# Імпорт наших модулів
+# Імпорти власних модулів
 from monitor import get_system_data
-from data_manager import DataManager
+from simple_data import SimpleDataManager
 from ai import SimpleAI
 from repair import SimpleRepair
 from achievements import SimpleAchievements
 from tests import SimpleTests
 from gui import create_gui
 
+# === БЛОКУВАННЯ ДРУГОГО ЗАПУСКУ (Windows Mutex) ===
+def singleton_win_mutex():
+    mutex_name = "TechCareAppMutex2025"
+    mutex = ctypes.windll.kernel32.CreateMutexW(None, ctypes.wintypes.BOOL(True), mutex_name)
+    last_error = ctypes.windll.kernel32.GetLastError()
+    if last_error == 183:  # ERROR_ALREADY_EXISTS
+        print("TechCare вже запущено (mutex)")
+        sys.exit(0)
+
+# === ТАЙМІНГ-ФУНКЦІЯ ===
+def measure_time(label, func):
+    start_time = time.perf_counter()
+    result = func()
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    output = f"{label}: {elapsed_time:.4f} секунд"
+    print(output)
+    with open('timings.log', 'a', encoding='utf-8') as f:
+        f.write(output + '\n')
+    return result
+
+# === ОСНОВНИЙ КЛАС ПРОГРАМИ ===
 class TechCareApp:
     def __init__(self):
-        """Ініціалізація TechCare додатка"""
-        # Ініціалізація компонентів
-        self.data_manager = DataManager()
+        print("[DEBUG] App instance created")
+        self.gui = create_gui(self.update_data)
+
+        self.gui.loading_screen.update_progress(20, "Ініціалізація модулів...")
+
+        self.data_manager = SimpleDataManager()
         self.ai_engine = SimpleAI(self.data_manager)
         self.repair_system = SimpleRepair()
         self.achievements = SimpleAchievements(self.data_manager)
         self.tests = SimpleTests(self.data_manager)
-        
-        # Пороги для сповіщень
+
+        self.gui.loading_screen.update_progress(40, "Налаштування системи...")
+
         self.thresholds = {
             'cpu_warning': 80,
             'ram_warning': 85,
             'disk_warning': 90,
-            'temp_warning': 70,
+            'temp_warning': 85,
             'uptime_warning': 24
         }
-        
-        # Стан додатка
+
         self.state = {
             'last_notification': {},
             'monitoring_active': True,
             'current_data': {}
         }
-        
-        # Створення GUI
-        self.gui = create_gui(self.update_data)
-        
-        # Запуск автодіагностики при старті
-        self.run_startup_diagnosis()
-        
-        # Запуск моніторингу в фоновому режимі
-        self.start_monitoring()
-    
+
+        self.gui.loading_screen.update_progress(60, "Запуск сервісів...")
+
+        self.gui.set_app_ref(self)
+        self.update_data()
+
+        self.gui.loading_screen.update_progress(100, "Готово до роботи!")
+        self.gui.root.after(500, self.gui.loading_screen.close)
+
+        print("Кінець ініціалізації TechCareApp")
+
+    def run(self):
+        """Запуск додатка"""
+        try:
+            # Запускаємо діагностику після запуску GUI
+            self.gui.root.after(800, lambda: threading.Thread(
+                target=self.run_startup_diagnosis, daemon=True).start())
+
+            # Запускаємо моніторинг у окремому потоці
+            threading.Thread(target=self.start_monitoring, daemon=True).start()
+
+            self.measure_time("GUI run", lambda: self.gui.root.mainloop())
+
+        except Exception as e:
+            print(f"Критична помилка: {e}")
+        finally:
+            self.state['monitoring_active'] = False
+
     def run_startup_diagnosis(self):
         """Автодіагностика при запуску"""
         try:
-            data = get_system_data()
-            health = self.ai_engine.predict_system_health(data)
-            
+            import pythoncom
+            pythoncom.CoInitialize()
+
+            data = measure_time("Get system data (startup diagnosis)", get_system_data)
+            health = measure_time("Predict system health (startup diagnosis)",
+                                  lambda: self.ai_engine.predict_system_health(data))
+
             if health['warnings']:
-                message = "\n".join(health['warnings'][:3])  # Показуємо перші 3 попередження
-                self.gui.show_notification("Попередження при запуску", message)
-                
+                message = "\n".join(health['warnings'][:3])
+                self.gui.root.after(0, lambda: self.gui.show_notification("Попередження при запуску", message))
+
         except Exception as e:
             print(f"Помилка при автодіагностиці: {e}")
-    
+            self.gui.root.after(0, lambda: self.gui.show_notification("TechCare запущено", "Програма готова до роботи!"))
+
+        finally:
+            try:
+                pythoncom.CoUninitialize()
+            except:
+                pass
+    def measure_time(self, label, func):
+        return measure_time(label, func)
+
     def start_monitoring(self):
         """Запуск фонового моніторингу"""
         def monitor_loop():
-            while self.state['monitoring_active']:
-                try:
-                    self.check_system_health()
-                    time.sleep(30)  # Перевірка кожні 30 секунд
-                except Exception as e:
-                    print(f"Помилка моніторингу: {e}")
-                    time.sleep(60)  # При помилці - перевірка рідше
-        
-        monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
-        monitor_thread.start()
-    
+            import pythoncom
+            pythoncom.CoInitialize()
+            try:
+                while self.state['monitoring_active']:
+                    try:
+                        self.measure_time("Check system health (monitoring)", self.check_system_health)
+                        time.sleep(30)
+                    except Exception as e:
+                        print(f"Помилка моніторингу: {e}")
+                        time.sleep(60)
+            finally:
+                pythoncom.CoUninitialize()
+
+        threading.Thread(target=monitor_loop, daemon=True).start()
+
     def check_system_health(self):
-        """Перевірка здоров'я системи та сповіщення"""
+        """Перевірка стану системи"""
         try:
-            data = get_system_data()
+            data = self.measure_time("Get system data (health check)", get_system_data)
             self.state['current_data'] = data
-            
-            # Збереження даних в базу
-            self.data_manager.save_system_data(data)
-            
-            # AI аналіз
-            health = self.ai_engine.predict_system_health(data)
-            
-            # Перевірка порогів та сповіщення
-            self.check_thresholds(data, health)
-            
+
+            self.measure_time("Save system data", lambda: self.data_manager.save_system_data(data))
+
+            health = self.measure_time("Predict system health (health check)", lambda: self.ai_engine.predict_system_health(data))
+
+            self.measure_time("Check thresholds", lambda: self.check_thresholds(data, health))
         except Exception as e:
             print(f"Помилка перевірки системи: {e}")
-    
+
     def check_thresholds(self, data, health):
-        """Перевірка порогів та відправка сповіщень"""
         current_time = time.time()
-        
-        # Перевірка критичних попереджень
+
         for warning in health['warnings']:
-            if any(critical in warning.lower() for critical in ['охолодіть', 'перезапустіть', 'очистіть']):
-                # Показуємо критичні попередження не частіше ніж раз на 10 хвилин
+            if any(word in warning.lower() for word in ['охолодіть', 'перезапустіть', 'очистіть']):
                 if current_time - self.state['last_notification'].get('critical', 0) > 600:
-                    self.gui.show_notification("Критичне попередження!", warning)
+                    self.gui.root.after(0, lambda: self.gui.show_notification("Критичне попередження!", warning))
                     self.state['last_notification']['critical'] = current_time
                     break
-        
-        # Перевірка інших порогів
-        if data['cpu_percent'] > self.thresholds['cpu_warning']:
-            if current_time - self.state['last_notification'].get('cpu', 0) > 1800:  # 30 хвилин
-                self.gui.show_notification("Високе навантаження CPU", 
-                                         f"CPU: {data['cpu_percent']:.1f}%")
-                self.state['last_notification']['cpu'] = current_time
-        
-        if data['ram_percent'] > self.thresholds['ram_warning']:
-            if current_time - self.state['last_notification'].get('ram', 0) > 1800:
-                self.gui.show_notification("Мало вільної пам'яті", 
-                                         f"RAM: {data['ram_percent']:.1f}%")
-                self.state['last_notification']['ram'] = current_time
-    
+
     def update_data(self):
-        """Оновлення даних в GUI (викликається по кнопці)"""
         try:
-            data = get_system_data()
+            data = self.measure_time("Get system data (update data)", get_system_data)
             self.state['current_data'] = data
-            
-            # Оновлення метрик в GUI
-            self.gui.update_main_metrics(data)
-            
-            # AI аналіз для вкладки аналітики
-            health = self.ai_engine.predict_system_health(data)
-            
-            # Оновлення AI вкладки
+
+            self.measure_time("Update main metrics", lambda: self.gui.update_main_metrics(data))
+
+            health = self.measure_time("Predict system health (update data)", lambda: self.ai_engine.predict_system_health(data))
+
             health_color = '#00FF00' if health['health_score'] > 70 else '#FFFF00' if health['health_score'] > 40 else '#FF0000'
-            self.gui.health_label.config(text=f"{health['health_score']}%", fg=health_color)
-            
-            # Оновлення попереджень
-            self.gui.predictions_text.delete(1.0, tk.END)
+            self.measure_time("Update health label", lambda: self.gui.health_label.config(text=f"{health['health_score']}%", fg=health_color))
+
+            self.measure_time("Update predictions text", lambda: self.gui.predictions_text.delete(1.0, tk.END))
             if health['warnings']:
                 for warning in health['warnings']:
                     self.gui.predictions_text.insert(tk.END, f"⚠ {warning}\n")
             else:
                 self.gui.predictions_text.insert(tk.END, "✓ Все працює нормально!\n")
-            
+
             if health['predictions']:
                 self.gui.predictions_text.insert(tk.END, "\nПрогнози:\n")
                 for prediction in health['predictions']:
                     self.gui.predictions_text.insert(tk.END, f"• {prediction}\n")
-            
-            # Оновлення статистики досягнень
-            try:
-                stats = self.data_manager.get_user_stats()
-                level = self.achievements.get_user_level(stats.get('total_points', 0))
-                self.gui.level_label.config(text=f"Рівень {level} ({stats.get('total_points', 0)} очок)")
-            except:
-                pass
-            
+
+            stats = self.measure_time("Get user stats", lambda: self.data_manager.get_user_stats())
+            level = self.measure_time("Get user level", lambda: self.achievements.get_user_level(stats.get('total_points', 0)))
+            self.measure_time("Update level label", lambda: self.gui.level_label.config(text=f"Рівень {level} ({stats.get('total_points', 0)} очок)"))
+
         except Exception as e:
             print(f"Помилка оновлення даних: {e}")
-            self.gui.show_notification("Помилка", f"Не вдалося оновити дані: {e}")
-    
-    def run(self):
-        """Запуск додатка"""
-        try:
-            # Перше оновлення даних
-            self.update_data()
-            
-            # Запуск GUI
-            self.gui.run()
-            
-        except Exception as e:
-            print(f"Критична помилка: {e}")
-        finally:
-            # Зупинка моніторингу при закритті
-            self.state['monitoring_active'] = False
+            self.gui.root.after(0, lambda: self.gui.show_notification("Помилка", f"Не вдалося оновити дані: {e}"))
 
+# === ГОЛОВНА ФУНКЦІЯ ===
 def main():
-    """Головна функція"""
-    try:
-        app = TechCareApp()
-        app.run()
-    except Exception as e:
-        print(f"Помилка запуску додатка: {e}")
-        import tkinter.messagebox as msgbox
-        msgbox.showerror("Помилка", f"Не вдалося запустити TechCare:\n{e}")
+    print("Початок запуску програми")
+    start_time = time.perf_counter()
+    app_instance = measure_time("TechCareApp init", lambda: TechCareApp())
+    measure_time("App run", lambda: app_instance.run())
+    end_time = time.perf_counter()
+    print(f"Загальний час запуску: {end_time - start_time:.4f} секунд")
 
+# === СТАРТ ===
 if __name__ == "__main__":
+    singleton_win_mutex()
+    multiprocessing.freeze_support()
     main()

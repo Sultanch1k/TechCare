@@ -1,0 +1,3 @@
+('C:\\Users\\Kostia\\OneDrive\\Desktop\\3 дипломна з '
+ 'exe\\MonitorManager\\build\\main\\PYZ-00.pyz',
+ [])

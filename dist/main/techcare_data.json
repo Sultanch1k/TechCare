@@ -1,0 +1,24 @@
+{
+  "user_stats": {
+    "total_points": 0,
+    "level": 1
+  },
+  "achievements": [],
+  "system_history": [
+    {
+      "timestamp": "2025-06-05T21:08:45.560850",
+      "cpu_percent": 17.2,
+      "ram_percent": 95.8,
+      "disk_percent": 66.36094894656507,
+      "temperature": 26.3
+    },
+    {
+      "timestamp": "2025-06-05T21:09:51.015229",
+      "cpu_percent": 16.5,
+      "ram_percent": 95.4,
+      "disk_percent": 66.36642205382664,
+      "temperature": 26.125
+    }
+  ],
+  "settings": {}
+}
