@@ -31,30 +31,35 @@ def get_system_data():
         data['disk_used'] = disk.used
         data['disk_free'] = disk.free
         
-        # температура тільки через WMI (Windows)
-        try:
-            if platform.system() == "Windows":
-                import wmi
-                import pythoncom
-                
-                # Ініціалізуємо COM для роботи з WMI в потоках
-                pythoncom.CoInitialize()
-                try:
-                    w = wmi.WMI(namespace="root\\WMI")
-                    thermal_info = w.MSAcpi_ThermalZoneTemperature()
-                    if thermal_info:
-                        temp_kelvin = thermal_info[0].CurrentTemperature / 10.0
-                        data['temperature'] = temp_kelvin - 273.15
-                        print(f"WMI температура: {data['temperature']:.1f}°C")
-                    else:
-                        data['temperature'] = 22 + (data['cpu_percent'] / 100) * 25
-                finally:
-                    pythoncom.CoUninitialize()
-            else:
-                data['temperature'] = 22 + (data['cpu_percent'] / 100) * 25
-        except:
-            data['temperature'] = 22 + (data['cpu_percent'] / 100) * 25
         
+        # температура: намагаємось отримати з WMI, fallback — формула
+        try:
+            import wmi
+            import pythoncom
+            pythoncom.CoInitialize()
+            w = wmi.WMI(namespace="root\WMI")
+            thermal_info = w.MSAcpi_ThermalZoneTemperature()
+            
+            valid_temp = None
+            for zone in thermal_info:
+                raw = zone.CurrentTemperature
+                if raw and raw > 2700:
+                    celsius = raw / 10.0 - 273.15
+                    if 25 < celsius < 100:
+                        valid_temp = round(celsius, 1)
+                        break
+
+            if valid_temp:
+                data['temperature'] = valid_temp
+            else:
+                raise ValueError("Немає адекватної температури")
+            
+            pythoncom.CoUninitialize()
+        except Exception as e:
+            print(f"[WARN] WMI температура недоступна або некоректна: {e}")
+            cpu_load = data.get('cpu_percent', 20)
+            data['temperature'] = round(35 + cpu_load * 0.5, 1)
+
         # вентилятори
         try:
             fans = psutil.sensors_fans()

@@ -3,11 +3,15 @@
 TechCare - Сучасний GUI модуль з Tkinter 2025
 Графічний інтерфейс для desktop додатка з неоновим дизайном
 """
-
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import json
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 import time
+from ai_tab import AITab
 
 # Імпорти для GUI
 
@@ -225,31 +229,91 @@ class TechCareGUI:
         
     def create_widgets(self):
         """Створення віджетів інтерфейсу з сучасним дизайном"""
-        # Сучасний заголовок з неоновим ефектом
         self.create_modern_header()
-        
+
         # Основний Notebook з новими стилями
-        self.notebook = ttk.Notebook(self.root, style='Modern.TNotebook')
-        self.notebook.pack(fill='both', expand=True, padx=10, pady=(5, 10))
-        
-        # Створюємо модернізовані вкладки
-        self.create_main_tab()
-        self.create_ai_tab()
-        self.create_hardware_tab()
-        self.create_achievements_tab()
+        self.tab_control = ttk.Notebook(self.root, style='Modern.TNotebook')
+        self.tab_control.pack(fill='both', expand=True, padx=10, pady=(5, 10))
+
+        # Створюємо вкладки
+        self.create_main_tab()          # 0 позиція
+        from ai_tab import AITab
+        self.ai_tab = AITab(self.tab_control, self.app_ref)
+        self.tab_control.add(self.ai_tab.frame, text='AI Аналітика')  # 1 позиція
+        self.create_history_tab()
+        self.create_hardware_tab()      # 2 позиція
+        self.create_achievements_tab()  # 3 позиція
         self.create_schedule_tab()
-        
-        # Статус бар внизу
+
         self.create_status_bar()
-        
-        # Ініціалізуємо список завдань
         self.tasks = []
         self.load_default_tasks()
+    
+        def create_history_tab(self, notebook):
+            self.history_tab = tk.Frame(notebook, bg="#0F111A")
+            notebook.add(self.history_tab, text="Історія")
+
+            self.plot_button = tk.Button(self.history_tab, text="Показати графік температури", command=self.plot_history)
+            self.plot_button.pack(pady=10)
+
+            self.canvas_frame = tk.Frame(self.history_tab)
+            self.canvas_frame.pack(fill=tk.BOTH, expand=True)
+
+
+        def plot_history(self):
+            try:
+                with open("data_history.json", "r", encoding="utf-8") as f:
+                    history = json.load(f)
+            except:
+                history = []
+
+            if not history:
+                return
+
+            timestamps = [entry["timestamp"][-8:] for entry in history[-50:]]
+            temps = [entry.get("temp", 0) for entry in history[-50:]]
+            cpu = [entry.get("cpu", 0) for entry in history[-50:]]
+            ram = [entry.get("ram", 0) for entry in history[-50:]]
+
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.plot(timestamps, temps, label="Температура (°C)")
+            ax.plot(timestamps, cpu, label="CPU (%)")
+            ax.plot(timestamps, ram, label="RAM (%)")
+            ax.set_title("Моніторинг системи")
+            ax.set_xlabel("Час")
+            ax.set_ylabel("Значення")
+            ax.legend()
+            ax.tick_params(axis='x', labelrotation=45)
+            fig.tight_layout()
+
+            for widget in self.canvas_frame.winfo_children():
+                widget.destroy()
+
+            canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+
+
+    def set_app_ref(self, app_ref):
+        self.app_ref = app_ref
+        # Якщо вкладка ще не створена — створюємо і передаємо посилання
+        if not hasattr(self, 'ai_tab'):
+            from ai_tab import AITab
+            self.ai_tab = AITab(self.tab_control, self.app_ref)
+            self.tab_control.add(self.ai_tab.frame, text='AI Аналітика')
+        else:
+            # Якщо вкладка вже є, але треба оновити app_ref
+            if hasattr(self.ai_tab, 'set_app_ref'):
+                self.ai_tab.set_app_ref(app_ref)
+            else:
+                self.ai_tab.app_ref = app_ref 
         
+
     def create_main_tab(self):
         """Вкладка 'Головна' з сучасним неоновим дизайном 2025"""
-        main_frame = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.notebook.add(main_frame, text="Головна")
+        main_frame = ttk.Frame(self.tab_control, style='Modern.TFrame')
+        self.tab_control.add(main_frame, text="Головна")
         
         # Контейнер для метрик з градієнтом
         metrics_container = tk.Frame(main_frame, bg='#0F0F0F')
@@ -378,24 +442,27 @@ class TechCareGUI:
         update_btn.pack(pady=10)
     
     def create_compact_button(self, parent, text, command, color, row, col):
-        """Створення компактної кнопки з неоновими ефектами"""
-        button = tk.Button(parent, text=text,
-                          font=('Roboto', 9, 'bold'),
-                          bg='#2D2D2D', fg='#FFFFFF',
-                          activebackground=color,
-                          activeforeground='#000000',
-                          relief='solid', bd=1,
-                          highlightbackground=color,
-                          highlightthickness=1,
-                          highlightcolor=color,
-                          command=command,
-                          padx=20, pady=8,
-                          cursor='hand2',
-                          width=10)
-        button.grid(row=row, column=col, padx=5, pady=3, sticky='ew')
-        
-        # Налаштування сітки
-        parent.grid_columnconfigure(col, weight=1)
+        try:
+            """Створення компактної кнопки з неоновими ефектами"""
+            button = tk.Button(parent, text=text,
+                            font=('Roboto', 9, 'bold'),
+                            bg='#2D2D2D', fg='#FFFFFF',
+                            activebackground=color,
+                            activeforeground='#000000',
+                            relief='solid', bd=1,
+                            highlightbackground=color,
+                            highlightthickness=1,
+                            highlightcolor=color,
+                            command=command,
+                            padx=20, pady=8,
+                            cursor='hand2',
+                            width=10)
+            button.grid(row=row, column=col, padx=5, pady=3, sticky='ew')
+            
+            # Налаштування сітки
+            parent.grid_columnconfigure(col, weight=1)
+        except Exception as e:
+            print(f"[ERROR] Кнопка '{text}' не створена: {e}")
         
         # Компактний анімований ефект
         def on_enter(e):
@@ -408,166 +475,13 @@ class TechCareGUI:
         button.bind("<Leave>", on_leave)
         
         return button
+    
+    
         
     def create_ai_tab(self):
-        """Вкладка 'AI Аналітика' з сучасним неоновим дизайном"""
-        ai_frame = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.notebook.add(ai_frame, text="AI Аналітика")
+        from ai_tab import AITab
+        self.ai_tab = AITab(self.tab_ai, self.app_ref)
         
-        # Контейнер з неоновим фоном
-        ai_container = tk.Frame(ai_frame, bg='#0F0F0F')
-        ai_container.pack(fill='both', expand=True, padx=15, pady=15)
-        
-        # Заголовок з AI іконкою
-        title_label = tk.Label(ai_container, text="🧠 Штучний Інтелект", 
-                              font=('Roboto', 16, 'bold'), 
-                              fg='#00DDEB', bg='#0F0F0F')
-        title_label.pack(pady=(0, 20))
-        
-        # Індекс здоров'я з неоновим ефектом
-        health_frame = tk.Frame(ai_container, bg='#1A1A1A',
-                               highlightbackground='#00DDEB',
-                               highlightthickness=2, relief='solid')
-        health_frame.pack(fill='x', pady=(0, 15), padx=20, ipady=15)
-        
-        health_title = tk.Label(health_frame, text="⚡ Індекс здоров'я системи", 
-                               font=('Roboto', 14, 'bold'), 
-                               fg='#CCCCCC', bg='#1A1A1A')
-        health_title.pack(pady=(10, 5))
-        
-        self.health_label = tk.Label(health_frame, text="85%", 
-                                    font=('Roboto', 24, 'bold'), 
-                                    fg='#00FF66', bg='#1A1A1A')
-        self.health_label.pack(pady=(0, 10))
-        
-        # Статус індикатор
-        self.health_status = tk.Label(health_frame, text="🟢 Система працює нормально", 
-                                     font=('Roboto', 11), 
-                                     fg='#00FF66', bg='#1A1A1A')
-        self.health_status.pack()
-        
-        # Прогнози з неоновим ефектом
-        predictions_frame = tk.Frame(ai_container, bg='#1A1A1A',
-                                    highlightbackground='#00DDEB',
-                                    highlightthickness=2, relief='solid')
-        predictions_frame.pack(fill='both', expand=True, padx=20, ipady=10)
-        
-        predictions_title = tk.Label(predictions_frame, text="🔮 Прогнози та рекомендації", 
-                                     font=('Roboto', 14, 'bold'), 
-                                     fg='#CCCCCC', bg='#1A1A1A')
-        predictions_title.pack(pady=(10, 10))
-        
-        # Текстове поле з неоновим скролбаром
-        text_container = tk.Frame(predictions_frame, bg='#1A1A1A')
-        text_container.pack(fill='both', expand=True, padx=15, pady=(0, 15))
-        
-        self.predictions_text = tk.Text(text_container, height=8, 
-                                       bg='#2D2D2D', fg='#FFFFFF', 
-                                       font=('Roboto', 10),
-                                       insertbackground='#00DDEB',
-                                       selectbackground='#00DDEB',
-                                       selectforeground='#000000',
-                                       relief='solid', bd=1)
-        self.predictions_text.pack(side='left', fill='both', expand=True)
-        
-        # Неоновий скролбар
-        scrollbar = tk.Scrollbar(text_container, bg='#2D2D2D', 
-                                troughcolor='#1A1A1A',
-                                activebackground='#00DDEB')
-        scrollbar.pack(side='right', fill='y')
-        
-        self.predictions_text.config(yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.predictions_text.yview)
-        
-        # Секція результатів тестів
-        tests_frame = tk.Frame(ai_container, bg='#1A1A1A',
-                              highlightbackground='#00DDEB',
-                              highlightthickness=2, relief='solid')
-        tests_frame.pack(fill='x', padx=20, pady=(10, 5))
-        
-        tests_title = tk.Label(tests_frame, text="📊 Результати тестів", 
-                              font=('Roboto', 12, 'bold'), 
-                              fg='#CCCCCC', bg='#1A1A1A')
-        tests_title.pack(pady=(8, 5))
-        
-        # Listbox для результатів тестів
-        listbox_container = tk.Frame(tests_frame, bg='#1A1A1A')
-        listbox_container.pack(fill='x', padx=15, pady=(0, 10))
-        
-        self.tests_listbox = tk.Listbox(listbox_container, height=4,
-                                       bg='#2D2D2D', fg='#FFFFFF', 
-                                       font=('Roboto', 9),
-                                       selectbackground='#00DDEB',
-                                       selectforeground='#000000',
-                                       relief='solid', bd=1)
-        self.tests_listbox.pack(side='left', fill='x', expand=True)
-        
-        scrollbar_tests = tk.Scrollbar(listbox_container, bg='#2D2D2D',
-                                      troughcolor='#1A1A1A',
-                                      activebackground='#00DDEB')
-        scrollbar_tests.pack(side='right', fill='y')
-        
-        self.tests_listbox.config(yscrollcommand=scrollbar_tests.set)
-        scrollbar_tests.config(command=self.tests_listbox.yview)
-        
-        # Секція мережевої діагностики
-        network_frame = tk.Frame(ai_container, bg='#1A1A1A',
-                                highlightbackground='#00DDEB',
-                                highlightthickness=2, relief='solid')
-        network_frame.pack(fill='x', padx=20, pady=(5, 10))
-        
-        network_title = tk.Label(network_frame, text="📡 Мережева діагностика", 
-                                font=('Roboto', 12, 'bold'), 
-                                fg='#CCCCCC', bg='#1A1A1A')
-        network_title.pack(pady=(8, 5))
-        
-        # Текстове поле для мережевої статистики
-        network_container = tk.Frame(network_frame, bg='#1A1A1A')
-        network_container.pack(fill='x', padx=15, pady=(0, 10))
-        
-        self.network_text = tk.Text(network_container, height=4,
-                                   bg='#2D2D2D', fg='#FFFFFF', 
-                                   font=('Roboto', 9),
-                                   insertbackground='#00DDEB',
-                                   selectbackground='#00DDEB',
-                                   selectforeground='#000000',
-                                   relief='solid', bd=1)
-        self.network_text.pack(side='left', fill='x', expand=True)
-        
-        scrollbar_network = tk.Scrollbar(network_container, bg='#2D2D2D',
-                                        troughcolor='#1A1A1A',
-                                        activebackground='#00DDEB')
-        scrollbar_network.pack(side='right', fill='y')
-        
-        self.network_text.config(yscrollcommand=scrollbar_network.set)
-        scrollbar_network.config(command=self.network_text.yview)
-        
-        # Центр управління AI функціями
-        control_frame = tk.Frame(ai_container, bg='#1A1A1A',
-                                highlightbackground='#00DDEB',
-                                highlightthickness=2, relief='solid')
-        control_frame.pack(fill='x', padx=20, pady=(0, 10))
-        
-        control_title = tk.Label(control_frame, text="🎯 Центр управління", 
-                                font=('Roboto', 12, 'bold'), 
-                                fg='#CCCCCC', bg='#1A1A1A')
-        control_title.pack(pady=(8, 5))
-        
-        # Сітка кнопок AI функцій
-        btn_grid = tk.Frame(control_frame, bg='#1A1A1A')
-        btn_grid.pack(pady=(0, 10))
-        
-        # Перший ряд - основні AI функції
-        self.create_compact_button(btn_grid, "🤖 AI Аналіз", self.run_ai_analysis, "#00DDEB", 0, 0)
-        self.create_compact_button(btn_grid, "🔄 Оновити AI", self.refresh_ai_analysis, "#00FF66", 0, 1)
-        
-        # Другий ряд - тести
-        self.create_compact_button(btn_grid, "📊 Всі тести", self.run_all_tests, "#9B59B6", 1, 0)
-        self.create_compact_button(btn_grid, "⚡ CPU", self.run_cpu_test, "#4ECDC4", 1, 1)
-        
-        # Третій ряд - мережа та діагностика  
-        self.create_compact_button(btn_grid, "📡 Мережа", self.scan_network, "#E74C3C", 2, 0)
-        self.create_compact_button(btn_grid, "🔍 Діагностика", self.run_diagnosis, "#FF6B35", 2, 1)
     
     def run_ai_analysis(self):
         """Запуск AI аналізу"""
@@ -668,8 +582,8 @@ class TechCareGUI:
         
     def create_repair_tab(self):
         """Вкладка 'Мережа' з сучасним неоновим дизайном"""
-        network_frame = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.notebook.add(network_frame, text="Мережа")
+        network_frame = ttk.Frame(self.tab_control, style='Modern.TFrame')
+        self.tab_control.add(network_frame, text="Мережа")
         
         # Контейнер з неоновим фоном
         network_container = tk.Frame(network_frame, bg='#0F0F0F')
@@ -759,8 +673,8 @@ class TechCareGUI:
         
     def create_achievements_tab(self):
         """Вкладка 'Досягнення' з сучасним неоновим дизайном"""
-        achievements_frame = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.notebook.add(achievements_frame, text="Досягнення")
+        achievements_frame = ttk.Frame(self.tab_control, style='Modern.TFrame')
+        self.tab_control.add(achievements_frame, text="Досягнення")
         
         # Контейнер з неоновим фоном
         achievements_container = tk.Frame(achievements_frame, bg='#0F0F0F')
@@ -855,17 +769,19 @@ class TechCareGUI:
         except Exception as e:
             print(f"Помилка оновлення досягнень: {e}")
     
-    def set_app_ref(self, app):
-        """Встановлення референсу додатка"""
-        self.app_ref = app
-        self.update_achievements_display()
-        
+    # def set_app_ref(self, app_ref):
+    #     self.app_ref = app_ref
+
+    #     from ai_tab import AITab
+    #     self.ai_tab = AITab(self.notebook, self.app_ref)
+    #     self.tab_control.add(self.ai_tab.frame, text="🧠 AI Аналітика")
+            
 
         
     def create_schedule_tab(self):
         """Вкладка 'Розклад'"""
-        schedule_frame = ttk.Frame(self.notebook)
-        self.notebook.add(schedule_frame, text="Розклад")
+        schedule_frame = ttk.Frame(self.tab_control)
+        self.tab_control.add(schedule_frame, text="Розклад")
         
         # Форма додавання завдання
         form_frame = tk.Frame(schedule_frame, bg='#1E1E1E')
@@ -1467,8 +1383,8 @@ class TechCareGUI:
     
     def create_diagnostics_tab(self):
         """Об'єднана вкладка 'Діагностика' з підрозділами"""
-        diagnostics_frame = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.notebook.add(diagnostics_frame, text="Діагностика")
+        diagnostics_frame = ttk.Frame(self.tab_control, style='Modern.TFrame')
+        self.tab_control.add(diagnostics_frame, text="Діагностика")
         
         # Контейнер з неоновим фоном
         main_container = tk.Frame(diagnostics_frame, bg='#0F0F0F')
@@ -1617,8 +1533,8 @@ class TechCareGUI:
     
     def create_hardware_tab(self):
         """Вкладка 'Комплектуючі' з інформацією про апаратну частину"""
-        hardware_frame = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.notebook.add(hardware_frame, text="Комплектуючі")
+        hardware_frame = ttk.Frame(self.tab_control, style='Modern.TFrame')
+        self.tab_control.add(hardware_frame, text="Комплектуючі")
         
         # Контейнер з неоновим фоном
         hardware_container = tk.Frame(hardware_frame, bg='#0F0F0F')
