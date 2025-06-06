@@ -112,8 +112,10 @@ class LoadingScreen:
     
 
     def close(self):
-        self.window.destroy()   
-        
+        print("[DEBUG] Закриття екрана завантаження")
+        if self.window.winfo_exists():
+            self.window.destroy()  
+            
    
     
 
@@ -124,35 +126,27 @@ class TechCareGUI:
         self.app_ref = None
         self.root = tk.Tk()
         
-        # Спочатку створюємо екран завантаження
+        self.root.withdraw()
         self.loading_screen = LoadingScreen(self.root)
         self.root.update_idletasks()
         self.root.update()
-        self.root.withdraw()  # Ховаємо головне вікно
-        
-        # Оновлюємо прогрес
+
         self.loading_screen.update_progress(10, "Налаштування інтерфейсу...")
-        time.sleep(1.5) 
         self.setup_window()
+
         self.loading_screen.update_progress(30, "Створення віджетів...")
-        time.sleep(2)
         self.create_widgets()
+
         self.loading_screen.update_progress(70, "Завантаження даних...")
-        
-        # Імітуємо завантаження або чекаємо на реальні дані
-        time.sleep(2)  # Можна видалити, це для прикладу
-        
-        # Завершуємо завантаження
+
+    def finish_loading(self):
+        print("[DEBUG] Завершення завантаження")
         self.loading_screen.update_progress(100, "Готово до роботи!")
-        time.sleep(0.5)
+        time.sleep(0.5)  # Затримка для завершення анімації
         self.loading_screen.close()
-        
-        # Показуємо головне вікно
         self.root.deiconify()
-
-
-
-        
+        self.root.update()
+            
     def setup_window(self):
         """Налаштування головного вікна з сучасним дизайном 2025"""
         self.root.title("TechCare 2025")

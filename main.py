@@ -47,6 +47,7 @@ class TechCareApp:
         print("[DEBUG] App instance created")
         self.gui = create_gui(self.update_data)
 
+        # спрощення: loading_screen вже є в gui
         self.gui.loading_screen.update_progress(20, "Ініціалізація модулів...")
 
         self.data_manager = SimpleDataManager()
@@ -76,8 +77,7 @@ class TechCareApp:
         self.gui.set_app_ref(self)
         self.update_data()
 
-        self.gui.loading_screen.update_progress(100, "Готово до роботи!")
-        self.gui.root.after(500, self.gui.loading_screen.close)
+        self.gui.root.after(500, self.gui.finish_loading)
 
         print("Кінець ініціалізації TechCareApp")
 
