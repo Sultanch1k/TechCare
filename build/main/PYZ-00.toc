@@ -860,6 +860,10 @@
   ('json.scanner',
    'C:\\Users\\Kostia\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\json\\scanner.py',
    'PYMODULE'),
+  ('json_data',
+   'C:\\Users\\Kostia\\OneDrive\\Desktop\\3 дипломна з '
+   'exe\\MonitorManager\\json_data.py',
+   'PYMODULE'),
   ('kiwisolver',
    'c:\\Users\\Kostia\\OneDrive\\Desktop\\3 дипломна з '
    'exe\\MonitorManager\\.venv\\Lib\\site-packages\\kiwisolver\\__init__.py',
@@ -2143,10 +2147,6 @@
   ('random',
    'C:\\Users\\Kostia\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\random.py',
    'PYMODULE'),
-  ('repair',
-   'C:\\Users\\Kostia\\OneDrive\\Desktop\\3 дипломна з '
-   'exe\\MonitorManager\\repair.py',
-   'PYMODULE'),
   ('rlcompleter',
    'C:\\Users\\Kostia\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\rlcompleter.py',
    'PYMODULE'),
@@ -2807,10 +2807,6 @@
    'PYMODULE'),
   ('signal',
    'C:\\Users\\Kostia\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\signal.py',
-   'PYMODULE'),
-  ('simple_data',
-   'C:\\Users\\Kostia\\OneDrive\\Desktop\\3 дипломна з '
-   'exe\\MonitorManager\\simple_data.py',
    'PYMODULE'),
   ('site',
    'C:\\Users\\Kostia\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site.py',

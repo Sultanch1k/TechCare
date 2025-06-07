@@ -3,7 +3,8 @@
 модуль для збору даних про систему
 написав сам, просто отримує основну інформацію
 """
-
+_cached_temp = None
+_temp_timestamp = 0
 import psutil
 import platform
 import time
@@ -11,12 +12,13 @@ import time
 
 
 def get_system_data():
+    global _cached_temp, _temp_timestamp
     """Отримуємо основні дані про систему"""
     data = {}
     
     try:
         # CPU
-        data['cpu_percent'] = psutil.cpu_percent(interval=1)
+        data['cpu_percent'] = psutil.cpu_percent(interval=None)
         
         # RAM
         memory = psutil.virtual_memory()
@@ -31,34 +33,31 @@ def get_system_data():
         data['disk_used'] = disk.used
         data['disk_free'] = disk.free
         
-        
-        # температура: намагаємось отримати з WMI, fallback — формула
-        try:
-            import wmi
-            import pythoncom
-            pythoncom.CoInitialize()
-            w = wmi.WMI(namespace="root\WMI")
-            thermal_info = w.MSAcpi_ThermalZoneTemperature()
-            
-            valid_temp = None
-            for zone in thermal_info:
-                raw = zone.CurrentTemperature
-                if raw and raw > 2700:
-                    celsius = raw / 10.0 - 273.15
-                    if 25 < celsius < 100:
-                        valid_temp = round(celsius, 1)
-                        break
-
-            if valid_temp:
-                data['temperature'] = valid_temp
-            else:
-                raise ValueError("Немає адекватної температури")
-            
-            pythoncom.CoUninitialize()
-        except Exception as e:
-            print(f"[WARN] WMI температура недоступна або некоректна: {e}")
+        # Температура через WMI раз на 10 хвилин (TTL=600 с), інакше — формула
+        now = time.time()
+        if _cached_temp is None or now - _temp_timestamp > 600:
+            try:
+                import wmi, pythoncom
+                pythoncom.CoInitialize()
+                w = wmi.WMI(namespace="root\\WMI")
+                for zone in w.MSAcpi_ThermalZoneTemperature():
+                    raw = zone.CurrentTemperature                    
+                    if raw and raw > 2700:
+                        c = raw / 10.0 - 273.15
+                        if 25 < c < 100:
+                            _cached_temp = round(c, 1)
+                            break
+                pythoncom.CoUninitialize()
+            except Exception:
+                _cached_temp = None
+            _temp_timestamp = now
+        if _cached_temp:
+            data['temperature'] = _cached_temp
+        else:
             cpu_load = data.get('cpu_percent', 20)
             data['temperature'] = round(35 + cpu_load * 0.5, 1)
+       
+        
 
         # вентилятори
         try:
@@ -308,59 +307,21 @@ def _get_windows_alternative_info():
     
     return info
 
-def get_network_data():
-    """Отримуємо дані про мережу"""
-    data = {}
+def get_network_data(interval=0.5):
+        """
+        Виміряти мережевий трафік (МБ/с) за заданий інтервал.
+        """
+        try:
+            io1 = psutil.net_io_counters()
+            time.sleep(interval)
+            io2 = psutil.net_io_counters()
+            sent = (io2.bytes_sent - io1.bytes_sent) / (1024 ** 2) / interval
+            recv = (io2.bytes_recv - io1.bytes_recv) / (1024 ** 2) / interval
+            return {
+                'net_sent_mb_s': round(sent, 2),
+                'net_recv_mb_s': round(recv, 2)
+            }
+        except Exception as e:
+            print(f"Помилка збору мережевих даних: {e}")
+            return {'net_sent_mb_s': 0.0, 'net_recv_mb_s': 0.0}
     
-    try:
-        # Статистика мережевих інтерфейсів
-        net_io = psutil.net_io_counters()
-        data['bytes_sent'] = net_io.bytes_sent
-        data['bytes_recv'] = net_io.bytes_recv
-        data['packets_sent'] = net_io.packets_sent
-        data['packets_recv'] = net_io.packets_recv
-        
-        # Активні з'єднання
-        connections = psutil.net_connections()
-        data['active_connections'] = len([c for c in connections if c.status == 'ESTABLISHED'])
-        data['listening_ports'] = len([c for c in connections if c.status == 'LISTEN'])
-        
-        # Мережеві інтерфейси
-        net_if_addrs = psutil.net_if_addrs()
-        interfaces = []
-        for interface_name, interface_addresses in net_if_addrs.items():
-            for address in interface_addresses:
-                if address.family == 2:  # IPv4
-                    interfaces.append({
-                        'name': interface_name,
-                        'ip': address.address,
-                        'netmask': address.netmask
-                    })
-        data['interfaces'] = interfaces
-        
-        # Статистика інтерфейсів
-        net_if_stats = psutil.net_if_stats()
-        interface_stats = []
-        for name, stats in net_if_stats.items():
-            if stats.isup:
-                interface_stats.append({
-                    'name': name,
-                    'speed': stats.speed if stats.speed > 0 else 0,
-                    'mtu': stats.mtu
-                })
-        data['interface_stats'] = interface_stats
-        
-    except Exception as e:
-        print(f"Помилка отримання мережевих даних: {e}")
-        data = {
-            'bytes_sent': 0,
-            'bytes_recv': 0,
-            'packets_sent': 0,
-            'packets_recv': 0,
-            'active_connections': 0,
-            'listening_ports': 0,
-            'interfaces': [],
-            'interface_stats': []
-        }
-    
-    return data

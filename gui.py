@@ -38,6 +38,7 @@ class LoadingScreen:
         
         # Додаємо елементи
         self.create_widgets()
+
     def create_widgets(self):
         """Створення елементів екрану завантаження з неоновими ефектами"""
         # Фон
@@ -152,7 +153,7 @@ class TechCareGUI:
         self.root.update()
             
     def setup_window(self):
-        """Налаштування головного вікна з сучасним дизайном 2025"""
+        """Налаштування головного вікна"""
         self.root.title("TechCare 2025")
         self.root.geometry("600x750")
         self.root.configure(bg='#0F0F0F')
@@ -166,7 +167,7 @@ class TechCareGUI:
         self.create_gradient_effect()
     
     def setup_modern_styles(self):
-        """Налаштування сучасних стилів з неоновими ефектами"""
+        """Налаштування  стилів"""
         style = ttk.Style()
         style.theme_use('clam')
         
@@ -179,7 +180,7 @@ class TechCareGUI:
                        background='#2D2D2D',
                        foreground='#FFFFFF',
                        padding=[15, 8],
-                       font=('Roboto', 10, 'bold'))
+                       font=('Roboto', 9, 'bold'))
         
         style.map('Modern.TNotebook.Tab',
                  background=[('selected', '#00DDEB'),
@@ -195,7 +196,7 @@ class TechCareGUI:
         pass
     
     def create_modern_header(self):
-        """Створення сучасного заголовка з неоновими ефектами"""
+        """Створення го заголовка """
         header_frame = tk.Frame(self.root, bg='#0F0F0F', height=80)
         header_frame.pack(fill='x', padx=10, pady=(10, 5))
         header_frame.pack_propagate(False)
@@ -228,7 +229,7 @@ class TechCareGUI:
         self.status_label.pack(side='left', padx=10, pady=3)
         
     def create_widgets(self):
-        """Створення віджетів інтерфейсу з сучасним дизайном"""
+        """Створення віджетів інтерфейсу"""
         self.create_modern_header()
 
         # Основний Notebook з новими стилями
@@ -240,7 +241,7 @@ class TechCareGUI:
         from ai_tab import AITab
         self.ai_tab = AITab(self.tab_control, self.app_ref)
         self.tab_control.add(self.ai_tab.frame, text='AI Аналітика')  # 1 позиція
-        self.create_history_tab()
+        self.create_history_tab(self.tab_control)  # 2 позиція
         self.create_hardware_tab()      # 2 позиція
         self.create_achievements_tab()  # 3 позиція
         self.create_schedule_tab()
@@ -249,49 +250,87 @@ class TechCareGUI:
         self.tasks = []
         self.load_default_tasks()
     
-        def create_history_tab(self, notebook):
-            self.history_tab = tk.Frame(notebook, bg="#0F111A")
-            notebook.add(self.history_tab, text="Історія")
+    def create_history_tab(self, notebook):
+        self.history_tab = tk.Frame(notebook, bg="#0F0F0F")
+        notebook.add(self.history_tab, text="Історія")
 
-            self.plot_button = tk.Button(self.history_tab, text="Показати графік температури", command=self.plot_history)
-            self.plot_button.pack(pady=10)
+        title = tk.Label(self.history_tab, text="📈 Історія системи",
+                        font=('Roboto', 16, 'bold'), fg='#00DDEB', bg='#0F0F0F')
+        title.pack(pady=(15, 10), fill='x')
 
-            self.canvas_frame = tk.Frame(self.history_tab)
-            self.canvas_frame.pack(fill=tk.BOTH, expand=True)
+        self.plot_button = tk.Button(
+            self.history_tab,
+            text="🔄 Побудувати графік",
+            command=self.plot_history,
+            font=('Roboto', 12, 'bold'),
+            bg='#2D2D2D', fg='#FFFFFF',
+            activebackground='#00DDEB',
+            activeforeground='#000000',
+            relief='solid', bd=2,
+            highlightbackground='#00DDEB',
+            highlightthickness=2,
+            padx=30, pady=10,
+            cursor='hand2'
+        )
+        self.plot_button.pack(pady=(0, 10))
 
+        def on_enter(e):
+            self.plot_button.config(bg='#00AACC', fg='#FFFFFF', highlightbackground='#00FF66')
 
-        def plot_history(self):
-            try:
-                with open("data_history.json", "r", encoding="utf-8") as f:
-                    history = json.load(f)
-            except:
-                history = []
+        def on_leave(e):
+            self.plot_button.config(bg='#2D2D2D', fg='#FFFFFF', highlightbackground='#00DDEB')
 
-            if not history:
-                return
+        self.plot_button.bind("<Enter>", on_enter)
+        self.plot_button.bind("<Leave>", on_leave)
 
-            timestamps = [entry["timestamp"][-8:] for entry in history[-50:]]
-            temps = [entry.get("temp", 0) for entry in history[-50:]]
-            cpu = [entry.get("cpu", 0) for entry in history[-50:]]
-            ram = [entry.get("ram", 0) for entry in history[-50:]]
+        
+        self.canvas_frame = tk.Frame(self.history_tab, bg="#0F0F0F")
+        self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-            fig, ax = plt.subplots(figsize=(6, 4))
-            ax.plot(timestamps, temps, label="Температура (°C)")
-            ax.plot(timestamps, cpu, label="CPU (%)")
-            ax.plot(timestamps, ram, label="RAM (%)")
-            ax.set_title("Моніторинг системи")
-            ax.set_xlabel("Час")
-            ax.set_ylabel("Значення")
-            ax.legend()
-            ax.tick_params(axis='x', labelrotation=45)
-            fig.tight_layout()
+    def plot_history(self):
+        import json
+        import matplotlib.pyplot as plt
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-            for widget in self.canvas_frame.winfo_children():
-                widget.destroy()
+        try:
+            from json_data import JsonDataManager
+            manager = JsonDataManager()
+            history = manager.get_historical_data()
+        except:
+            history = []
 
-            canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        if not history:
+            return
+
+        timestamps = [  entry["timestamp"].split('T')[1].split('.')[0]   for entry in history[-15:]]
+        temps = [entry.get("temperature", 0) for entry in history[-15:]]
+        cpu = [entry.get("cpu_percent", 0) for entry in history[-15:]]
+        ram = [entry.get("ram_percent", 0) for entry in history[-15:]]
+
+        fig, ax = plt.subplots(figsize=(7, 4), facecolor='#0F0F0F')
+        ax.set_facecolor('#0F0F0F')
+
+        ax.plot(timestamps, temps, label="Температура (°C)", color='#4FC3F7', linewidth=2.2)
+        ax.plot(timestamps, cpu, label="CPU (%)", color='#81C784', linewidth=2.2)
+        ax.plot(timestamps, ram, label="RAM (%)", color='#E57373', linewidth=2.2)
+
+        ax.set_title("Історія показників системи", color='white', fontsize=14, fontweight='bold')
+        ax.set_xlabel("Час", color='white')
+        ax.set_ylabel("Значення", color='white')
+        ax.tick_params(axis='x', labelrotation=45, colors='white')
+        ax.tick_params(axis='y', colors='white')
+        for spine in ax.spines.values():
+            spine.set_color('white')
+        ax.legend(facecolor='#1E1E1E', edgecolor='white', labelcolor='white', fontsize=9)
+
+        fig.tight_layout()
+
+        for widget in self.canvas_frame.winfo_children():
+            widget.destroy()
+
+        canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 
 
@@ -522,6 +561,11 @@ class TechCareGUI:
                 
                 self.predictions_text.delete(1.0, tk.END)
                 self.predictions_text.insert(tk.END, "⚡ Експрес-аналіз завершено!\n\n")
+                if hasattr(self, 'app_ref'):
+                    scores = self.app_ref.tests.run_benchmark()
+                    self.predictions_text.insert(tk.END, f"\n🧪 Тест продуктивності:\n")
+                    self.predictions_text.insert(tk.END, f"• CPU: {scores['cpu_score']:.1f}%\n")
+                    self.predictions_text.insert(tk.END, f"• RAM: {scores['ram_score']:.1f}%\n")
                 
                 # Аналізуємо CPU
                 cpu_percent = data.get('cpu_percent', 0)
@@ -580,96 +624,15 @@ class TechCareGUI:
         import threading
         threading.Thread(target=quick_analysis, daemon=True).start()
         
-    def create_repair_tab(self):
-        """Вкладка 'Мережа' з сучасним неоновим дизайном"""
-        network_frame = ttk.Frame(self.tab_control, style='Modern.TFrame')
-        self.tab_control.add(network_frame, text="Мережа")
-        
-        # Контейнер з неоновим фоном
-        network_container = tk.Frame(network_frame, bg='#0F0F0F')
-        network_container.pack(fill='both', expand=True, padx=15, pady=15)
-        
-        # Заголовок з іконкою мережі
-        title_label = tk.Label(network_container, text="🌐 Мережевий моніторинг", 
-                              font=('Roboto', 16, 'bold'), 
-                              fg='#00DDEB', bg='#0F0F0F')
-        title_label.pack(pady=(0, 20))
-        
-        # Контейнер для кнопок
-        buttons_container = tk.Frame(network_container, bg='#0F0F0F')
-        buttons_container.pack(fill='x', pady=(0, 20))
-        
-        # Кнопки мережевого моніторингу з неоновими ефектами
-        btn_frame = tk.Frame(buttons_container, bg='#0F0F0F')
-        btn_frame.pack()
-        
-        self.create_neon_action_button(btn_frame, "📡 Сканувати мережу", self.scan_network, "#FF6600")
-        self.create_neon_action_button(btn_frame, "📊 Показати інтерфейси", self.show_interfaces, "#00AACC")
-        
-        # Список результатів мережевого моніторингу з неоновим ефектом
-        network_frame = tk.Frame(network_container, bg='#1A1A1A',
-                                highlightbackground='#00DDEB',
-                                highlightthickness=2, relief='solid')
-        network_frame.pack(fill='both', expand=True, ipady=10)
-        
-        network_title = tk.Label(network_frame, text="📊 Мережева статистика", 
-                                font=('Roboto', 14, 'bold'), 
-                                fg='#CCCCCC', bg='#1A1A1A')
-        network_title.pack(pady=(10, 10))
-        
-        # Контейнер для списку з скролбаром
-        list_container = tk.Frame(network_frame, bg='#1A1A1A')
-        list_container.pack(fill='both', expand=True, padx=15, pady=(0, 15))
-        
-        self.network_listbox = tk.Listbox(list_container, bg='#2D2D2D', fg='#FFFFFF', 
-                                         font=('Roboto', 10),
-                                         selectbackground='#00DDEB',
-                                         selectforeground='#000000',
-                                         relief='solid', bd=1,
-                                         activestyle='none')
-        self.network_listbox.pack(side='left', fill='both', expand=True)
-        
-        # Неоновий скролбар для списку
-        network_scrollbar = tk.Scrollbar(list_container, bg='#2D2D2D',
-                                        troughcolor='#1A1A1A',
-                                        activebackground='#00DDEB')
-        network_scrollbar.pack(side='right', fill='y')
-        
-        self.network_listbox.config(yscrollcommand=network_scrollbar.set)
-        network_scrollbar.config(command=self.network_listbox.yview)
-        
-        # Додаємо початкові записи
-        self.network_listbox.insert(tk.END, "🌐 Готово до мережевого сканування")
-        self.network_listbox.insert(tk.END, "📡 Натисніть кнопку для аналізу мережі")
     
-    def create_neon_action_button(self, parent, text, command, color):
-        """Створення кнопки дії з кольоровими неоновими ефектами"""
-        button = tk.Button(parent, text=text,
-                          font=('Roboto', 11, 'bold'),
-                          bg='#2D2D2D', fg='#FFFFFF',
-                          activebackground=color,
-                          activeforeground='#000000',
-                          relief='solid', bd=2,
-                          highlightbackground=color,
-                          highlightthickness=1,
-                          command=command,
-                          padx=25, pady=10,
-                          cursor='hand2')
-        button.pack(side='left', padx=10)
-        
-        # Ефект наведення з кольором
-        def on_enter(e):
-            button.config(bg=color, fg='#000000', 
-                         highlightbackground='#FFFFFF')
-            
-        def on_leave(e):
-            button.config(bg='#2D2D2D', fg='#FFFFFF',
-                         highlightbackground=color)
-        
-        button.bind("<Enter>", on_enter)
-        button.bind("<Leave>", on_leave)
-        
-        return button
+    
+    def add_task_from_analysis(self, title, desc, priority):
+        task_str = f"{title} | {desc} | {priority}"
+        self.tasks_listbox.insert(tk.END, task_str)
+        self.tasks.append({'name': title, 'desc': desc, 'priority': priority, 'done': False})
+        self.update_task_stats()
+    
+    
         
     def create_achievements_tab(self):
         """Вкладка 'Досягнення' з сучасним неоновим дизайном"""
@@ -769,12 +732,6 @@ class TechCareGUI:
         except Exception as e:
             print(f"Помилка оновлення досягнень: {e}")
     
-    # def set_app_ref(self, app_ref):
-    #     self.app_ref = app_ref
-
-    #     from ai_tab import AITab
-    #     self.ai_tab = AITab(self.notebook, self.app_ref)
-    #     self.tab_control.add(self.ai_tab.frame, text="🧠 AI Аналітика")
             
 
         
@@ -908,66 +865,7 @@ class TechCareGUI:
         """Показ сповіщення без звуку"""
         messagebox.showwarning(title, message)
     
-    def run_diagnosis(self):
-        """Запуск діагностики"""
-        from repair import SimpleRepair
-        from monitor import get_system_data
-        
-        self.problems_listbox.delete(0, tk.END)
-        self.problems_listbox.insert(tk.END, "Запуск діагностики...")
-        self.root.update()
-        
-        # Запускаємо діагностику в окремому потоці
-        def diagnose():
-            try:
-                repair_system = SimpleRepair()
-                problems = repair_system.diagnose_system()
-                
-                # Оновлюємо список після діагностики
-                self.problems_listbox.delete(0, tk.END)
-                if problems:
-                    for problem in problems:
-                        self.problems_listbox.insert(tk.END, f"⚠ {problem}")
-                else:
-                    self.problems_listbox.insert(tk.END, "✓ Проблем не знайдено!")
-            except Exception as e:
-                self.problems_listbox.delete(0, tk.END)
-                self.problems_listbox.insert(tk.END, f"Помилка діагностики: {e}")
-        
-        import threading
-        threading.Thread(target=diagnose, daemon=True).start()
-    
-    def run_repairs(self):
-        """Запуск ремонту"""
-        from repair import SimpleRepair
-        
-        try:
-            repair_system = SimpleRepair()
-            problems = repair_system.diagnose_system()
-            
-            if problems:
-                fixed_count = 0
-                for problem in problems:
-                    if "CPU" in problem:
-                        if repair_system.fix_cpu_issue():
-                            fixed_count += 1
-                    elif "RAM" in problem or "пам'ять" in problem:
-                        if repair_system.fix_ram_issue():
-                            fixed_count += 1
-                    elif "диск" in problem:
-                        if repair_system.fix_disk_issue():
-                            fixed_count += 1
-                
-                if fixed_count > 0:
-                    messagebox.showinfo("Ремонт", f"Виправлено {fixed_count} проблем!")
-                    # Оновлюємо список після ремонту
-                    self.run_diagnosis()
-                else:
-                    messagebox.showinfo("Ремонт", "Не вдалося виправити проблеми автоматично")
-            else:
-                messagebox.showinfo("Ремонт", "Проблем для виправлення не знайдено!")
-        except Exception as e:
-            messagebox.showerror("Помилка", f"Помилка під час ремонту: {e}")
+     
     
     def run_cpu_test(self):
         """Запуск тесту CPU"""
@@ -1224,162 +1122,7 @@ class TechCareGUI:
         remaining_tasks = total_tasks - completed_count
         self.stats_label.config(text=f"Завдань: {total_tasks} | Виконано: {completed_count} | Залишилось: {remaining_tasks}")
     
-    def run_diagnosis(self):
-        """Запуск діагностики системи"""
-        def diagnose():
-            self.problems_listbox.delete(0, tk.END)
-            self.problems_listbox.insert(tk.END, "🔄 Запуск діагностики...")
-            self.root.update()
-            
-            import time
-            time.sleep(1)
-            
-            # Отримуємо реальні дані системи
-            from monitor import get_system_data
-            data = get_system_data()
-            
-            self.problems_listbox.delete(0, tk.END)
-            self.problems_listbox.insert(tk.END, "📊 Результати діагностики:")
-            self.problems_listbox.insert(tk.END, "")
-            
-            # Аналіз CPU
-            if data['cpu_percent'] > 80:
-                self.problems_listbox.insert(tk.END, "🔴 CPU: Високе навантаження ({:.1f}%)".format(data['cpu_percent']))
-            elif data['cpu_percent'] > 50:
-                self.problems_listbox.insert(tk.END, "🟡 CPU: Помірне навантаження ({:.1f}%)".format(data['cpu_percent']))
-            else:
-                self.problems_listbox.insert(tk.END, "🟢 CPU: Нормальне навантаження ({:.1f}%)".format(data['cpu_percent']))
-            
-            # Аналіз RAM
-            if data['ram_percent'] > 85:
-                self.problems_listbox.insert(tk.END, "🔴 RAM: Критично мало пам'яті ({:.1f}%)".format(data['ram_percent']))
-            elif data['ram_percent'] > 70:
-                self.problems_listbox.insert(tk.END, "🟡 RAM: Високе використання ({:.1f}%)".format(data['ram_percent']))
-            else:
-                self.problems_listbox.insert(tk.END, "🟢 RAM: Достатньо пам'яті ({:.1f}%)".format(data['ram_percent']))
-            
-            # Аналіз диска
-            if data['disk_percent'] > 90:
-                self.problems_listbox.insert(tk.END, "🔴 Диск: Мало вільного місця ({:.1f}%)".format(data['disk_percent']))
-            elif data['disk_percent'] > 80:
-                self.problems_listbox.insert(tk.END, "🟡 Диск: Рекомендується очищення ({:.1f}%)".format(data['disk_percent']))
-            else:
-                self.problems_listbox.insert(tk.END, "🟢 Диск: Достатньо місця ({:.1f}%)".format(data['disk_percent']))
-            
-            # Аналіз температури
-            temp = data.get('temperature')
-            if temp and temp > 85:
-                self.problems_listbox.insert(tk.END, "🔴 Температура: Перегрів ({:.1f}°C)".format(temp))
-            elif temp and temp > 75:
-                self.problems_listbox.insert(tk.END, "🟡 Температура: Підвищена ({:.1f}°C)".format(temp))
-            else:
-                self.problems_listbox.insert(tk.END, "🟢 Температура: Нормальна ({:.1f}°C)".format(temp if temp else 0))
-            
-            self.problems_listbox.insert(tk.END, "")
-            self.problems_listbox.insert(tk.END, "✅ Діагностика завершена")
-            
-            # Нараховуємо очки за діагностику
-            try:
-                if hasattr(self, 'app_ref') and self.app_ref:
-                    self.app_ref.data_manager.save_user_activity(
-                        "diagnosis_run", 5, "Запущена діагностика системи"
-                    )
-                    self.update_achievements_display()
-            except:
-                pass
-        
-        import threading
-        threading.Thread(target=diagnose, daemon=True).start()
     
-    def scan_network(self):
-        """Сканування мережі та відображення статистики"""
-        def scan():
-            self.network_listbox.delete(0, tk.END)
-            self.network_listbox.insert(tk.END, "🔄 Сканування мережі...")
-            self.root.update()
-            
-            import time
-            time.sleep(1)
-            
-            from monitor import get_network_data, format_bytes
-            network_data = get_network_data()
-            
-            self.network_listbox.delete(0, tk.END)
-            self.network_listbox.insert(tk.END, "📊 Мережева статистика:")
-            self.network_listbox.insert(tk.END, "")
-            
-            # Статистика трафіку
-            bytes_sent = format_bytes(network_data['bytes_sent'])
-            bytes_recv = format_bytes(network_data['bytes_recv'])
-            self.network_listbox.insert(tk.END, f"📤 Відправлено: {bytes_sent}")
-            self.network_listbox.insert(tk.END, f"📥 Отримано: {bytes_recv}")
-            self.network_listbox.insert(tk.END, f"📦 Пакетів відправлено: {network_data['packets_sent']:,}")
-            self.network_listbox.insert(tk.END, f"📦 Пакетів отримано: {network_data['packets_recv']:,}")
-            self.network_listbox.insert(tk.END, "")
-            
-            # Активні з'єднання
-            self.network_listbox.insert(tk.END, f"🔗 Активні з'єднання: {network_data['active_connections']}")
-            self.network_listbox.insert(tk.END, f"👂 Порти що слухають: {network_data['listening_ports']}")
-            self.network_listbox.insert(tk.END, "")
-            
-            # Мережеві інтерфейси
-            if network_data['interfaces']:
-                self.network_listbox.insert(tk.END, "🌐 Мережеві інтерфейси:")
-                for interface in network_data['interfaces'][:5]:  # Показуємо перші 5
-                    self.network_listbox.insert(tk.END, f"  • {interface['name']}: {interface['ip']}")
-            
-            self.network_listbox.insert(tk.END, "")
-            self.network_listbox.insert(tk.END, "✅ Сканування завершено")
-            
-            # Нараховуємо очки за сканування мережі
-            try:
-                if hasattr(self, 'app_ref') and self.app_ref:
-                    self.app_ref.data_manager.save_user_activity(
-                        "network_scan", 8, "Виконано сканування мережі"
-                    )
-                    self.update_achievements_display()
-            except:
-                pass
-        
-        import threading
-        threading.Thread(target=scan, daemon=True).start()
-    
-    def show_interfaces(self):
-        """Показ детальної інформації про мережеві інтерфейси"""
-        from monitor import get_network_data
-        network_data = get_network_data()
-        
-        self.network_listbox.delete(0, tk.END)
-        self.network_listbox.insert(tk.END, "🔧 Мережеві інтерфейси:")
-        self.network_listbox.insert(tk.END, "")
-        
-        # Детальна інформація про інтерфейси
-        if network_data['interface_stats']:
-            for interface in network_data['interface_stats']:
-                name = interface['name']
-                speed = interface['speed']
-                mtu = interface['mtu']
-                
-                self.network_listbox.insert(tk.END, f"📡 Інтерфейс: {name}")
-                if speed > 0:
-                    speed_mbps = speed / 1000000 if speed > 1000000 else speed
-                    unit = "Gbps" if speed > 1000000 else "Mbps"
-                    self.network_listbox.insert(tk.END, f"  ⚡ Швидкість: {speed_mbps:.0f} {unit}")
-                else:
-                    self.network_listbox.insert(tk.END, f"  ⚡ Швидкість: Невідома")
-                self.network_listbox.insert(tk.END, f"  📏 MTU: {mtu}")
-                self.network_listbox.insert(tk.END, "")
-        
-        # Додаткова інформація про IP адреси
-        if network_data['interfaces']:
-            self.network_listbox.insert(tk.END, "🌐 IP конфігурація:")
-            for interface in network_data['interfaces']:
-                self.network_listbox.insert(tk.END, f"  {interface['name']}: {interface['ip']}")
-                if interface.get('netmask'):
-                    self.network_listbox.insert(tk.END, f"    Маска: {interface['netmask']}")
-            
-        self.network_listbox.insert(tk.END, "")
-        self.network_listbox.insert(tk.END, "ℹ️ Інформація про мережеві інтерфейси")
     
     def create_diagnostics_tab(self):
         """Об'єднана вкладка 'Діагностика' з підрозділами"""
@@ -1547,13 +1290,9 @@ class TechCareGUI:
         title_label.pack(pady=(0, 20))
         
         # Кнопка оновлення інформації
-        buttons_container = tk.Frame(hardware_container, bg='#0F0F0F')
-        buttons_container.pack(fill='x', pady=(0, 20))
-        
-        btn_frame = tk.Frame(buttons_container, bg='#0F0F0F')
+        btn_frame = tk.Frame(hardware_container, bg='#0F0F0F')
         btn_frame.pack()
-        
-        self.create_neon_action_button(btn_frame, "🔄 Оновити інформацію", self.refresh_hardware_info, "#00AACC")
+        self.create_neon_button(btn_frame,"🔄 Оновити інформацію",self.refresh_hardware_info)
         
         # Список з інформацією про комплектуючі
         info_frame = tk.Frame(hardware_container, bg='#1A1A1A',

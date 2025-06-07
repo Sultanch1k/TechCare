@@ -6,14 +6,16 @@
 
 class SimpleAI:
     def __init__(self, data_manager):
+        """Ініціалізація простого AI для аналізу системних даних"""
         self.data_manager = data_manager
-        # Стан для лічильників часу
         self.state = {
             'high_temp_start': None,
             'high_ram_start': None,
             'last_check': None
         }
-    
+        from tests import SimpleTests
+        self.tests = SimpleTests(data_manager)
+
     def predict_system_health(self, data):
         """Прогнозує здоров'я системи з часовими лічильниками"""
         import time
@@ -106,7 +108,25 @@ class SimpleAI:
         
         health_score -= cpu_penalty + ram_penalty + disk_penalty + temp_penalty
         health_score = max(15, min(100, int(health_score)))  # мінімум 15%, максимум 100%
+        # Диск-тест
+        try:
+            disk_result = self.tests.run_disk_test()
+            disk_score = disk_result.get('disk_score', disk_result.get('score'))
+            if disk_score is not None and disk_score < 75:
+                warnings.append(f"Низька швидкість диска: {disk_score}% – рекомендовано дефрагментацію (defrag C:)")
+                health_score -= (75 - disk_score) * 0.2
+        except Exception:
+            pass
         
+        # Мережеві метрики
+        try:
+            from monitor import get_network_data
+            net = get_network_data(interval=0.5)
+            recv = net.get('net_recv_mb_s', 0)
+            if recv < 1.0:
+                warnings.append(f"Низька швидкість мережі: {recv} МБ/с")
+        except Exception:
+            pass
         # Прогнозування майбутніх проблем на основі історії
         predictions = self._predict_future_issues(data)
         

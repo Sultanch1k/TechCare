@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """
 TechCare - Desktop застосунок для моніторингу ПК з Smart-нагадуванням
@@ -16,9 +15,9 @@ from datetime import datetime
 import os
 
 from monitor import get_system_data
-from simple_data import SimpleDataManager
+from json_data import JsonDataManager
 from ai import SimpleAI
-from repair import SimpleRepair
+
 from achievements import SimpleAchievements
 from tests import SimpleTests
 from gui import create_gui
@@ -49,9 +48,9 @@ class TechCareApp:
 
         self.gui.loading_screen.update_progress(20, "Ініціалізація модулів...")
 
-        self.data_manager = SimpleDataManager()
+        self.data_manager = JsonDataManager()
         self.ai_engine = SimpleAI(self.data_manager)
-        self.repair_system = SimpleRepair()
+        
         self.achievements = SimpleAchievements(self.data_manager)
         self.tests = SimpleTests(self.data_manager)
 
@@ -74,6 +73,7 @@ class TechCareApp:
         self.gui.loading_screen.update_progress(60, "Запуск сервісів...")
 
         self.gui.set_app_ref(self)
+        self.gui.root.protocol("WM_DELETE_WINDOW", self.shutdown)
 
         self.update_data()
 
@@ -85,7 +85,9 @@ class TechCareApp:
         try:
             self.gui.root.after(800, lambda: threading.Thread(
                 target=self.run_startup_diagnosis, daemon=True).start())
-            threading.Thread(target=self.start_monitoring, daemon=True).start()
+            self.monitor_thread = threading.Thread(
+                target=self.start_monitoring, daemon=True)
+            self.monitor_thread.start()
             self.measure_time("GUI run", lambda: self.gui.root.mainloop())
         except Exception as e:
             print(f"Критична помилка: {e}")
@@ -130,20 +132,37 @@ class TechCareApp:
                         time.sleep(60)
             finally:
                 pythoncom.CoUninitialize()
-
-        threading.Thread(target=monitor_loop, daemon=True).start()
+        monitor_loop()
+        
 
     def check_system_health(self):
         try:
             data = self.measure_time("Get system data (health check)", get_system_data)
-            self.save_history_entry(data)
+            # self.save_history_entry(data)
             self.state['current_data'] = data
-            self.generate_smart_reminders(data)
+            # self.generate_smart_reminders(data)
             self.measure_time("Save system data", lambda: self.data_manager.save_system_data(data))
             health = self.measure_time("Predict system health (health check)", lambda: self.ai_engine.predict_system_health(data))
             self.measure_time("Check thresholds", lambda: self.check_thresholds(data, health))
+
+            self.data_manager.save_user_activity("diagnostics_done", 1, "Системна діагностика")
+            stats = self.data_manager.get_user_stats()
+            self.achievements.check_achievements(stats)
+            self.gui.update_achievements_display()
+
         except Exception as e:
             print(f"Помилка перевірки системи: {e}")
+
+    def shutdown(self):
+        """Коректно зупинити моніторинг і закрити програму."""
+        print("[DEBUG] Shutting down monitoring threads")
+            # сигналізуємо потоку завершитись
+        self.state['monitoring_active'] = False
+            # чекаємо максимум 5 секунд, щоб потік відреагував
+        if hasattr(self, 'monitor_thread'):
+                self.monitor_thread.join(timeout=5)
+        # після цього чисто закриваємо GUI
+        self.gui.root.destroy()
 
     def check_thresholds(self, data, health):
         current_time = time.time()
@@ -158,7 +177,7 @@ class TechCareApp:
         try:
             data = self.measure_time("Get system data (update data)", get_system_data)
             self.state['current_data'] = data
-            self.generate_smart_reminders(data)
+            # self.generate_smart_reminders(data)
             self.measure_time("Update main metrics", lambda: self.gui.update_main_metrics(data))
             health = self.measure_time("Predict system health (update data)", lambda: self.ai_engine.predict_system_health(data))
 
@@ -185,62 +204,21 @@ class TechCareApp:
             print(f"Помилка оновлення даних: {e}")
             self.gui.root.after(0, lambda err=e: self.gui.show_notification("Помилка", f"Не вдалося оновити дані: {err}"))
 
-    def generate_smart_reminders(self, data):
-        reminders = []
-        if data.get('disk_percent', 0) > 85:
-            reminders.append(("Очистити диск", "Заповнено понад 85% місця", "Високий"))
-        if data.get('ram_percent', 0) > 90:
-            reminders.append(("Закрити зайві програми", "ОЗП майже заповнено", "Високий"))
-        if data.get('uptime_hours', 0) > 48:
-            reminders.append(("Перезавантажити ПК", "Комп'ютер працює більше 2 днів", "Середній"))
-        if data.get('temperature', 0) > 75:
-            reminders.append(("Охолодити ПК", "Температура CPU перевищує 75°C", "Високий"))
+    
+    # def save_history_entry(self, data):
+    #     try:
+    #         entry = {
+    #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    #             "cpu": data.get("cpu_percent", 0),
+    #             "ram": data.get("ram_percent", 0),
+    #             "temp": data.get("temperature", 0)
+    #         }
+    #         with open("data_history.json", "a", encoding="utf-8") as f:
+    #             json.dump(entry, f)
+    #             f.write("\n")
+    #     except Exception as e:
+    #         print(f"[WARN] Історія не збережена: {e}")
 
-        for name, desc, prio in reminders:
-            self.add_smart_task(name, desc, prio)
-
-    def add_smart_task(self, name, desc, priority):
-        for task in self.gui.tasks:
-            if task['name'] == name:
-                return
-        task = {
-            "name": name,
-            "desc": desc,
-            "priority": priority,
-            "completed": False
-        }
-        self.gui.tasks.append(task)
-        self.gui.update_tasks_display()
-        print(f"[SMART] Додано смарт-нагадування: {name}")
-
-
-    def save_history_entry(self, data):
-        history_file = "data_history.json"
-        entry = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "cpu": data.get('cpu_percent'),
-            "ram": data.get('ram_percent'),
-            "disk": data.get('disk_percent'),
-            "temp": data.get('temperature'),
-            "uptime": data.get('uptime_hours')
-        }
-
-        if os.path.exists(history_file):
-            try:
-                with open(history_file, "r", encoding="utf-8") as f:
-                    history = json.load(f)
-            except:
-                history = []
-        else:
-            history = []
-
-        history.append(entry)
-
-        if len(history) > 500:
-            history = history[-500:]
-
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=2, ensure_ascii=False)
     
 
 def main():

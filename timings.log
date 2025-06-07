@@ -1,0 +1,107 @@
+Get system data (update data): 3.7452 секунд
+Update main metrics: 0.0005 секунд
+Predict system health (update data): 0.5368 секунд
+Update health label: 0.0001 секунд
+Update predictions text: 0.0000 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0002 секунд
+TechCareApp init: 4.9731 секунд
+Get system data (health check): 4.7433 секунд
+Save system data: 0.0006 секунд
+Predict system health (health check): 0.5511 секунд
+Check thresholds: 0.0000 секунд
+Check system health (monitoring): 5.3008 секунд
+Get system data (startup diagnosis): 4.7479 секунд
+Predict system health (startup diagnosis): 0.5332 секунд
+Get system data (update data): 3.6561 секунд
+Update main metrics: 0.0012 секунд
+Predict system health (update data): 0.5471 секунд
+Update health label: 0.0002 секунд
+Update predictions text: 0.0001 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0002 секунд
+TechCareApp init: 4.7916 секунд
+Get system data (health check): 4.9589 секунд
+Check system health (monitoring): 4.9597 секунд
+Get system data (startup diagnosis): 4.9258 секунд
+Predict system health (startup diagnosis): 0.5357 секунд
+Get system data (health check): 3.5727 секунд
+Check system health (monitoring): 3.5737 секунд
+Get system data (update data): 3.5573 секунд
+Update main metrics: 0.0012 секунд
+Predict system health (update data): 0.5375 секунд
+Update health label: 0.0001 секунд
+Update predictions text: 0.0000 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0002 секунд
+TechCareApp init: 4.6592 секунд
+Get system data (health check): 4.7598 секунд
+Check system health (monitoring): 4.7606 секунд
+Get system data (startup diagnosis): 4.7321 секунд
+Predict system health (startup diagnosis): 0.5352 секунд
+Get system data (update data): 3.5790 секунд
+Update main metrics: 0.0012 секунд
+Predict system health (update data): 0.5515 секунд
+Update health label: 0.0001 секунд
+Update predictions text: 0.0000 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0002 секунд
+TechCareApp init: 4.7004 секунд
+Get system data (health check): 4.6346 секунд
+Save system data: 0.0006 секунд
+Predict system health (health check): 0.5609 секунд
+Check thresholds: 0.0000 секунд
+Get system data (startup diagnosis): 4.9670 секунд
+Predict system health (startup diagnosis): 0.5378 секунд
+Get system data (update data): 3.8675 секунд
+Update main metrics: 0.0006 секунд
+Predict system health (update data): 0.5391 секунд
+Update health label: 0.0001 секунд
+Update predictions text: 0.0000 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0002 секунд
+Check system health (monitoring): 9.1676 секунд
+Get system data (update data): 3.5146 секунд
+Update main metrics: 0.0007 секунд
+Predict system health (update data): 0.5358 секунд
+Update health label: 0.0001 секунд
+Update predictions text: 0.0000 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0001 секунд
+Get system data (update data): 3.5168 секунд
+Update main metrics: 0.0005 секунд
+Predict system health (update data): 0.5366 секунд
+Update health label: 0.0001 секунд
+Update predictions text: 0.0001 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0001 секунд
+Get system data (health check): 3.5525 секунд
+Save system data: 0.0006 секунд
+Predict system health (health check): 0.5361 секунд
+Check thresholds: 0.0000 секунд
+Check system health (monitoring): 4.0944 секунд
+Get system data (update data): 4.3182 секунд
+Update main metrics: 0.0005 секунд
+Predict system health (update data): 0.5354 секунд
+Update health label: 0.0002 секунд
+Update predictions text: 0.0001 секунд
+Get user stats: 0.0000 секунд
+Get user level: 0.0000 секунд
+Update level label: 0.0002 секунд
+Get system data (health check): 4.3380 секунд
+Save system data: 0.0006 секунд
+Predict system health (health check): 0.5374 секунд
+Check thresholds: 0.0000 секунд
+Check system health (monitoring): 4.8812 секунд
+Get system data (health check): 3.4866 секунд
+Save system data: 0.0008 секунд
+Predict system health (health check): 0.5370 секунд
+Check thresholds: 0.0000 секунд
+Check system health (monitoring): 4.0285 секунд

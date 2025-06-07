@@ -35,7 +35,8 @@ python main.py
 ### Крок 5: Створення .exe файлу (опціонально)
 1. Встановіть PyInstaller: `pip install pyinstaller`
 2. Створіть exe: `pyinstaller --onefile main.py`
-3. Готовий exe буде в папці `dist/`
+3. pyinstaller --onefile --windowed --icon=gear.ico main.py
+4. Готовий exe буде в папці `dist/`
 
 ## Структура файлів (що я написав)
 - `main.py` - головний файл програми
