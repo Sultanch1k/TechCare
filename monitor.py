@@ -6,6 +6,14 @@
 _cached_temp = None
 _temp_timestamp = 0
 import psutil
+import os
+import clr
+from pathlib import Path
+
+# підключаємо LibreHardwareMonitor DLL
+dll = Path(__file__).parent / "LibreHardwareMonitorLib.dll"
+clr.AddReference(str(dll))
+from LibreHardwareMonitor.Hardware import Computer, HardwareType, SensorType
 import platform
 import time
 
@@ -34,58 +42,39 @@ def get_system_data():
         data['disk_free'] = disk.free
         
         # Температура через WMI раз на 10 хвилин (TTL=600 с), інакше — формула
-        now = time.time()
-        if _cached_temp is None or now - _temp_timestamp > 600:
-            try:
-                import wmi, pythoncom
-                pythoncom.CoInitialize()
-                w = wmi.WMI(namespace="root\\WMI")
-                for zone in w.MSAcpi_ThermalZoneTemperature():
-                    raw = zone.CurrentTemperature                    
-                    if raw and raw > 2700:
-                        c = raw / 10.0 - 273.15
-                        if 25 < c < 100:
-                            _cached_temp = round(c, 1)
-                            break
-                pythoncom.CoUninitialize()
-            except Exception:
-                _cached_temp = None
-            _temp_timestamp = now
-        if _cached_temp:
-            data['temperature'] = _cached_temp
-        else:
-            cpu_load = data.get('cpu_percent', 20)
-            data['temperature'] = round(35 + cpu_load * 0.5, 1)
-       
-        
-
-        # вентилятори
         try:
-            fans = psutil.sensors_fans()
-            fan_found = False
-            if fans:
-                for name, entries in fans.items():
-                    if entries:
-                        data['fan_speed'] = entries[0].current
-                        fan_found = True
+            comp = Computer()
+            comp.IsCpuEnabled = True
+            comp.IsMotherboardEnabled = True     # якщо хочете додаткові зони
+            comp.IsFanControllerEnabled = True   # для вентиляторів
+            comp.Open()
+
+            # температура ЦП
+            data['temperature'] = None
+            for hw in comp.Hardware:
+                if hw.HardwareType == HardwareType.Cpu:
+                    hw.Update()
+                    for s in hw.Sensors:
+                        if s.SensorType == SensorType.Temperature:
+                            data['temperature'] = round(s.Value, 1)
+                            break
+                    break
+
+            # швидкість вентилятора
+            data['fan_speed'] = None
+            for hw in comp.Hardware:
+                hw.Update()
+                for s in hw.Sensors:
+                    if s.SensorType == SensorType.Fan:
+                        data['fan_speed'] = int(s.Value)
                         break
-            
-            if not fan_found:
-                # рахую швидкість по температурі
-                temp = data.get('temperature', 45)
-                if temp > 70:
-                    data['fan_speed'] = 2800 + (temp - 70) * 60
-                elif temp > 60:
-                    data['fan_speed'] = 2200 + (temp - 60) * 60
-                elif temp > 50:
-                    data['fan_speed'] = 1600 + (temp - 50) * 60
-                elif temp > 40:
-                    data['fan_speed'] = 1200 + (temp - 40) * 40
-                else:
-                    data['fan_speed'] = 900 + temp * 15
-        except:
-            temp = data.get('temperature', 45)
-            data['fan_speed'] = 1000 + temp * 20
+                if data['fan_speed'] is not None:
+                    break
+            comp.Close()
+        except Exception as e:
+            # якщо щось пішло не так — залишаємо None
+            data['temperature'] = None
+            data['fan_speed'] = None
         
         # Час роботи з моменту завантаження (реальний uptime)
         boot_time = psutil.boot_time()

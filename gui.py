@@ -854,12 +854,15 @@ class TechCareGUI:
             minutes = int(uptime * 60)
             self.uptime_label.config(text=f"{minutes} хв")
         
-        # Вентилятор компактно
+        # Вентилятор — показуємо лише коли є реальне значення
         fan_speed = data.get('fan_speed')
         if fan_speed and fan_speed > 0:
+            # Виводимо поточну швидкість та переконуємося, що фрейм видимий
             self.fan_label.config(text=f"{int(fan_speed)} RPM")
+            self.fan_frame.grid()           # повернути в сітку, якщо він був схований
         else:
-            self.fan_label.config(text="Н/Д")
+            # Приховати весь фрейм вентилятора, якщо даних нема
+            self.fan_frame.grid_remove()
     
     def show_notification(self, title, message):
         """Показ сповіщення без звуку"""

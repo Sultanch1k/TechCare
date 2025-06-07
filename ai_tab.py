@@ -93,14 +93,38 @@ class AITab:
             self.update_status_indicator(score)
 
             # Метрики мережі
-            net = get_network_data()
-            recv, sent = net.get('net_recv_mb_s', 0), net.get('net_sent_mb_s', 0)
-            if recv > 0 or sent > 0:
-                self.predictions_text.insert(tk.END, "\n📡 Метрики мережі:\n", 'bold')
-                self.predictions_text.insert(tk.END, f" • Отримано: {recv:.2f} МБ/с\n")
-                self.predictions_text.insert(tk.END, f" • Відправлено: {sent:.2f} МБ/с\n")
+            net = get_network_data(interval=2.0)
+            # конвертуємо MB/s → Mb/s (1 MB/s = 8 Mb/s)
+            recv_mb_s = net.get('net_recv_mb_s', 0)
+            sent_mb_s = net.get('net_sent_mb_s', 0)
+            recv_mbps = recv_mb_s * 8
+            sent_mbps = sent_mb_s * 8
+
+            import psutil
+            # знайдемо перший «up» інтерфейс із відомою швидкістю
+            link_info = None
+            for name, stats in psutil.net_if_stats().items():
+                if stats.isup and stats.speed:
+                    link_info = (name, stats.speed)
+                    break
+
+            self.predictions_text.insert(tk.END, "\n📡 Мережева активність:\n", 'bold')
+            self.predictions_text.insert(
+                tk.END,
+                f" • Трафік: ↓ {recv_mbps:.2f} Мбіт/с, ↑ {sent_mbps:.2f} Мбіт/с\n"
+            )
+            if link_info:
+                iface, speed = link_info
+                self.predictions_text.insert(
+                    tk.END,
+                    f" • Пропускна здатність лінку ({iface}): {speed} Мбіт/с\n"
+                )
             else:
-                self.predictions_text.insert(tk.END, "\n📡 Трафік наразі нульовий\n", 'bold')
+                self.predictions_text.insert(
+                    tk.END,
+                    " • Пропускна здатність лінку невідома\n"
+                )
+            # ————————————————————————————————————————————————
 
             # Disk Test
             disk_score = SimpleTests(self.app_ref.data_manager).run_disk_test().get('disk_score', 0)
