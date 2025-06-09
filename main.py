@@ -60,7 +60,7 @@ class TechCareApp:
             'cpu_warning': 80,
             'ram_warning': 85,
             'disk_warning': 90,
-            'temp_warning': 85,
+            
             'uptime_warning': 24
         }
 
@@ -76,10 +76,27 @@ class TechCareApp:
         self.gui.root.protocol("WM_DELETE_WINDOW", self.shutdown)
 
         self.update_data()
+        self.auto_collect_running = False
 
         self.gui.root.after(500, self.gui.finish_loading)
 
         print("Кінець ініціалізації TechCareApp")
+    
+    def background_collector(self):
+        while self.auto_collect_running:
+            try:
+                data = get_system_data()
+                self.data_manager.save_system_data(data)
+            except Exception as e:
+                print(f"[ERROR] background_collector: {e}")
+            time.sleep(2)
+
+    def start_auto_collect(self):
+        self.auto_collect_running = True
+        threading.Thread(target=self.background_collector, daemon=True).start()
+
+    def stop_auto_collect(self):
+        self.auto_collect_running = False
 
     def run(self):
         try:
@@ -205,26 +222,14 @@ class TechCareApp:
             self.gui.root.after(0, lambda err=e: self.gui.show_notification("Помилка", f"Не вдалося оновити дані: {err}"))
 
     
-    # def save_history_entry(self, data):
-    #     try:
-    #         entry = {
-    #             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    #             "cpu": data.get("cpu_percent", 0),
-    #             "ram": data.get("ram_percent", 0),
-    #             "temp": data.get("temperature", 0)
-    #         }
-    #         with open("data_history.json", "a", encoding="utf-8") as f:
-    #             json.dump(entry, f)
-    #             f.write("\n")
-    #     except Exception as e:
-    #         print(f"[WARN] Історія не збережена: {e}")
-
+    
     
 
 def main():
     print("Початок запуску програми")
     start_time = time.perf_counter()
     app_instance = measure_time("TechCareApp init", lambda: TechCareApp())
+    app_instance.start_auto_collect()
     measure_time("App run", lambda: app_instance.run())
     end_time = time.perf_counter()
     print(f"Загальний час запуску: {end_time - start_time:.4f} секунд")

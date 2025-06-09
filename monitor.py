@@ -3,8 +3,7 @@
 модуль для збору даних про систему
 написав сам, просто отримує основну інформацію
 """
-_cached_temp = None
-_temp_timestamp = 0
+
 import psutil
 import os
 import clr
@@ -13,14 +12,14 @@ from pathlib import Path
 # підключаємо LibreHardwareMonitor DLL
 dll = Path(__file__).parent / "LibreHardwareMonitorLib.dll"
 clr.AddReference(str(dll))
-from LibreHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+
 import platform
 import time
 
 
 
 def get_system_data():
-    global _cached_temp, _temp_timestamp
+    
     """Отримуємо основні дані про систему"""
     data = {}
     
@@ -41,40 +40,14 @@ def get_system_data():
         data['disk_used'] = disk.used
         data['disk_free'] = disk.free
         
-        # Температура через WMI раз на 10 хвилин (TTL=600 с), інакше — формула
-        try:
-            comp = Computer()
-            comp.IsCpuEnabled = True
-            comp.IsMotherboardEnabled = True     # якщо хочете додаткові зони
-            comp.IsFanControllerEnabled = True   # для вентиляторів
-            comp.Open()
+        
 
-            # температура ЦП
-            data['temperature'] = None
-            for hw in comp.Hardware:
-                if hw.HardwareType == HardwareType.Cpu:
-                    hw.Update()
-                    for s in hw.Sensors:
-                        if s.SensorType == SensorType.Temperature:
-                            data['temperature'] = round(s.Value, 1)
-                            break
-                    break
+          
+            
 
-            # швидкість вентилятора
-            data['fan_speed'] = None
-            for hw in comp.Hardware:
-                hw.Update()
-                for s in hw.Sensors:
-                    if s.SensorType == SensorType.Fan:
-                        data['fan_speed'] = int(s.Value)
-                        break
-                if data['fan_speed'] is not None:
-                    break
-            comp.Close()
-        except Exception as e:
-            # якщо щось пішло не так — залишаємо None
-            data['temperature'] = None
-            data['fan_speed'] = None
+            
+        
+        
         
         # Час роботи з моменту завантаження (реальний uptime)
         boot_time = psutil.boot_time()
@@ -171,7 +144,7 @@ def get_system_data():
             'cpu_percent': 0,
             'ram_percent': 0,
             'disk_percent': 0,
-            'temperature': None,
+           
             'process_count': 0,
             'ram_total': 0,
             'ram_used': 0,

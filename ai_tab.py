@@ -2,165 +2,172 @@ import tkinter as tk
 from tkinter import ttk
 from monitor import get_system_data, get_network_data
 from tests import SimpleTests
+import matplotlib.pyplot as plt
+
+# Кольори (як у твоєму gui.py)
+DARK_BG    = "#181D23"
+CARD_BG    = "#232A33"
+ACCENT     = "#80FFD0"
+ACCENT_2   = "#44A6FF"
+TEXT_MAIN  = "#E9F6F2"
+TEXT_FADED = "#92A6B6"
+RED        = "#FF6384"
+YELLOW     = "#FFD580"
+GREEN      = "#B6FFB0"
+SHADOW     = "#1A222C"
+
+try:
+    from gui import SmoothProgressBar
+except ImportError:
+    class SmoothProgressBar(tk.Canvas):
+        def __init__(self, parent, width=220, height=16, bg="#1A222C", fg="#44A6FF", radius=12, **kwargs):
+            super().__init__(parent, width=width, height=height, bg=bg, highlightthickness=0, bd=0, **kwargs)
+            self.fg = fg
+        def set_progress(self, v, animate=True): pass
 
 class AITab:
     def __init__(self, parent, app_ref):
-        self.frame = ttk.Frame(parent, style='Modern.TFrame')
-        self.app_ref = app_ref  # посилання на головний додаток з ai_engine
-        self.build_ui()
-        self.init_ai_engine()
-
-    def build_ui(self):
-        # Заголовок з неоновим ефектом
-        title = tk.Label(self.frame, text="🤖 AI Аналітика",
-                         font=('Roboto', 16, 'bold'),
-                         fg='#00DDEB', bg='#0F0F0F')
-        title.pack(pady=(15, 10), fill='x')
-
-        # Статус здоров'я AI
-        self.health_label = tk.Label(self.frame, text="🧠 Індекс здоров'я: --%",
-                                     font=('Roboto', 12), fg='#00FF66', bg='#0F0F0F')
-        self.health_label.pack(pady=(0, 10))
-
-        # Статус індикатор
-        self.status_indicator = tk.Canvas(self.frame, width=20, height=20,
-                                          bg='#0F0F0F', highlightthickness=0)
-        self.status_indicator.pack(pady=(0, 10))
-
-        # Текстове поле з неоновим фоном
-        self.predictions_text = tk.Text(self.frame, height=15,
-                                        bg='#1A1A1A', fg='#00FF66',
-                                        font=('Consolas', 12),
-                                        insertbackground='#00FF66',
-                                        relief='flat', bd=2,
-                                        highlightbackground='#00DDEB',
-                                        highlightcolor='#00DDEB',
-                                        highlightthickness=2)
-        self.predictions_text.pack(fill='both', expand=True, padx=15, pady=10)
-
-        # Теги для стилізації тексту
-        self.predictions_text.tag_configure('bold', font=('Consolas', 12, 'bold'))
-        self.predictions_text.tag_configure('warning', foreground='#FFA500')
-        self.predictions_text.tag_configure('prediction', foreground='#00FFFF')
-        self.predictions_text.tag_configure('error', foreground='#FF4444')
-        self.predictions_text.tag_configure('success', foreground='#00FF00')
-
-        # Кнопка оновлення
-        button_frame = tk.Frame(self.frame, bg='#0F0F0F')
-        button_frame.pack(pady=15)
-
-        refresh_btn = tk.Button(button_frame, text="🔄 Оновити AI аналіз",
-                                font=('Roboto', 12, 'bold'),
-                                bg='#2D2D2D', fg='#FFFFFF',
-                                activebackground='#00DDEB',
-                                activeforeground='#000000',
-                                relief='solid', bd=2,
-                                highlightbackground='#00DDEB',
-                                highlightthickness=2,
-                                command=self.run_ai_analysis,
-                                padx=30, pady=10,
-                                cursor='hand2')
-        refresh_btn.pack()
-
-        def on_enter(e):
-            refresh_btn.config(bg='#00AACC', fg='#FFFFFF', highlightbackground='#00FF66')
-        def on_leave(e):
-            refresh_btn.config(bg='#2D2D2D', fg='#FFFFFF', highlightbackground='#00DDEB')
-
-        refresh_btn.bind("<Enter>", on_enter)
-        refresh_btn.bind("<Leave>", on_leave)
-
-    def update_status_indicator(self, score):
-        # Змінюємо колір індикатора залежно від оцінки
-        color = '#00FF00' if score >= 70 else '#FFFF00' if score >= 40 else '#FF4444'
-        self.status_indicator.delete("all")
-        self.status_indicator.create_oval(2, 2, 18, 18, fill=color)
-
-    def run_ai_analysis(self):
-        self.predictions_text.delete(1.0, tk.END)
-        self.predictions_text.insert(tk.END, "🧠 Збір даних...\n", 'bold')
-
-        try:
-            data = get_system_data()
-
-            if not hasattr(self.app_ref, 'ai_engine') or self.app_ref.ai_engine is None:
-                raise Exception("AI engine не ініціалізований")
-
-            result = self.app_ref.ai_engine.predict_system_health(data)
-
-            score = result.get('health_score', 0)
-            self.health_label.config(text=f"🧠 Індекс здоров'я: {score}%")
-            self.update_status_indicator(score)
-
-            # Метрики мережі
-            net = get_network_data(interval=2.0)
-            # конвертуємо MB/s → Mb/s (1 MB/s = 8 Mb/s)
-            recv_mb_s = net.get('net_recv_mb_s', 0)
-            sent_mb_s = net.get('net_sent_mb_s', 0)
-            recv_mbps = recv_mb_s * 8
-            sent_mbps = sent_mb_s * 8
-
-            import psutil
-            # знайдемо перший «up» інтерфейс із відомою швидкістю
-            link_info = None
-            for name, stats in psutil.net_if_stats().items():
-                if stats.isup and stats.speed:
-                    link_info = (name, stats.speed)
-                    break
-
-            self.predictions_text.insert(tk.END, "\n📡 Мережева активність:\n", 'bold')
-            self.predictions_text.insert(
-                tk.END,
-                f" • Трафік: ↓ {recv_mbps:.2f} Мбіт/с, ↑ {sent_mbps:.2f} Мбіт/с\n"
-            )
-            if link_info:
-                iface, speed = link_info
-                self.predictions_text.insert(
-                    tk.END,
-                    f" • Пропускна здатність лінку ({iface}): {speed} Мбіт/с\n"
-                )
-            else:
-                self.predictions_text.insert(
-                    tk.END,
-                    " • Пропускна здатність лінку невідома\n"
-                )
-            # ————————————————————————————————————————————————
-
-            # Disk Test
-            disk_score = SimpleTests(self.app_ref.data_manager).run_disk_test().get('disk_score', 0)
-            self.predictions_text.insert(tk.END, f"\n💽 Disk Test: {disk_score:.1f}%\n", 'bold')
-
-            if result.get('warnings'):
-                self.predictions_text.insert(tk.END, "\n⚠️ Попередження:\n", 'warning')
-                for w in result['warnings']:
-                    self.predictions_text.insert(tk.END, f" • {w}\n")
-
-            if result.get('predictions'):
-                self.predictions_text.insert(tk.END, "\n🔮 Прогнози:\n", 'prediction')
-                for p in result['predictions']:
-                    self.predictions_text.insert(tk.END, f" • {p}\n")
-
-            # Рекомендації
-            self.predictions_text.insert(tk.END, "\n💡 Рекомендації:\n", 'success')
-            if score < 70:
-                self.predictions_text.insert(tk.END, " • Перезапуск системи\n")
-            if disk_score < 75:
-                self.predictions_text.insert(tk.END, " • Дефрагментація: defrag C:\\n")
-
-        except Exception as e:
-            self.predictions_text.insert(tk.END, f"❌ Помилка AI аналізу: {e}\n", 'error')
-        finally:
-            try:
-                self.app_ref.gui.status_label.config(text="✅ AI аналіз завершено")
-            except:
-                pass
-
-    def init_ai_engine(self):
-        if self.app_ref and hasattr(self.app_ref, 'ai_engine'):
-            self.ai_engine = self.app_ref.ai_engine
-        else:
-            self.ai_engine = None
-
-    def set_app_ref(self, app_ref):
+        self.frame = tk.Frame(parent, bg=DARK_BG)
         self.app_ref = app_ref
-        self.init_ai_engine()
+        self.auto_refresh_enabled = tk.BooleanVar(value=True)
+        self.last_score = 0
+        self._init_ui()
+        self._auto_refresh()
+
+    def _init_ui(self):
+        tk.Label(self.frame, text="🤖 AI Аналітика", font=("Segoe UI", 15, "bold"), fg=ACCENT, bg=DARK_BG).pack(pady=(16, 5))
+
+        # SCORE + прогресбар
+        bar_frame = tk.Frame(self.frame, bg=DARK_BG)
+        bar_frame.pack(pady=(0, 10))
+        self.health_label = tk.Label(bar_frame, text="🧠 AI Health Score: --%", font=("Segoe UI", 13, "bold"), fg=ACCENT, bg=DARK_BG)
+        self.health_label.pack()
+        self.health_bar = SmoothProgressBar(bar_frame, width=210, height=16, fg=ACCENT_2, bg=SHADOW)
+        self.health_bar.pack(pady=(4, 0))
+        self.status_canvas = tk.Canvas(bar_frame, width=32, height=32, bg=DARK_BG, highlightthickness=0, bd=0)
+        self.status_canvas.pack(pady=(6, 2))
+        self._draw_status_circle(0)
+
+        # Порада
+        self.advice_label = tk.Label(self.frame, text="", font=("Segoe UI", 12), bg=DARK_BG, fg=YELLOW, wraplength=340, justify="left")
+        self.advice_label.pack(pady=(3, 11))
+
+        # Деталізація
+        self.predictions_text = tk.Text(self.frame, height=8, bg=CARD_BG, fg=TEXT_MAIN, insertbackground=ACCENT, font=("Consolas", 11), relief="flat", bd=0, wrap="word", padx=8, pady=6)
+        self.predictions_text.pack(fill="both", expand=True, padx=12, pady=(4, 8))
+        self.predictions_text.config(state="disabled")
+        self.predictions_text.tag_configure("warn", foreground=YELLOW)
+        self.predictions_text.tag_configure("error", foreground=RED)
+        self.predictions_text.tag_configure("success", foreground=GREEN)
+        self.predictions_text.tag_configure("pred", foreground=ACCENT_2)
+
+        # Кнопки
+        btn_fr = tk.Frame(self.frame, bg=DARK_BG)
+        btn_fr.pack(pady=(0, 8))
+        self._refresh_btn = tk.Button(btn_fr, text="🔄 Оновити AI аналіз", font=("Segoe UI", 11, "bold"),
+            bg=ACCENT_2, fg=TEXT_MAIN, activebackground=ACCENT, activeforeground=DARK_BG,
+            relief="flat", bd=0, padx=22, pady=6, cursor="hand2", highlightthickness=0,
+            command=self.update_ai_analysis)
+        self._refresh_btn.pack(side="left", padx=8)
+        self.trend_btn = tk.Button(btn_fr, text="📈 Тренд", font=("Segoe UI", 11),
+            bg=SHADOW, fg=ACCENT, relief="flat", bd=0, command=self._show_trend)
+        self.trend_btn.pack(side="left", padx=8)
+
+        # Чекбокс
+        self.auto_checkbox = tk.Checkbutton(self.frame, text="Автооновлення", variable=self.auto_refresh_enabled,
+            onvalue=True, offvalue=False, bg=DARK_BG, fg=ACCENT,
+            activebackground=DARK_BG, activeforeground=ACCENT, selectcolor=CARD_BG, font=("Segoe UI", 10, "bold"))
+        self.auto_checkbox.pack()
+
+    def _auto_refresh(self):
+        if self.auto_refresh_enabled.get():
+            self.update_ai_analysis()
+        self.frame.after(10000, self._auto_refresh)
+
+    def _draw_status_circle(self, score):
+        color = GREEN if score >= 70 else YELLOW if score >= 45 else RED
+        self.status_canvas.delete("all")
+        self.status_canvas.create_oval(4, 4, 28, 28, fill=color, outline="")
+
+    def _show_trend(self):
+        if not self.app_ref or not hasattr(self.app_ref, "data_manager"):
+            return
+        history = self.app_ref.data_manager.get_historical_data(days=7)
+        if not history:
+            return
+        import matplotlib.pyplot as plt
+        timestamps = [h["timestamp"].split('T')[0] for h in history[-30:]]
+        cpu = [h.get("cpu_percent", 0) for h in history[-30:]]
+        ram = [h.get("ram_percent", 0) for h in history[-30:]]
+        disk = [h.get("disk_percent", 0) for h in history[-30:]]
+        ai = [100 - ((c + r)/2) for c, r in zip(cpu, ram)]
+        fig, ax = plt.subplots(figsize=(8, 4), facecolor=DARK_BG)
+        ax.set_facecolor(CARD_BG)
+        ax.plot(timestamps, cpu, label="CPU (%)", lw=2)
+        ax.plot(timestamps, ram, label="RAM (%)", lw=2)
+        ax.plot(timestamps, disk, label="Disk (%)", lw=2)
+        ax.plot(timestamps, ai, label="AI Health Score", lw=2, color="#80FFD0")
+        ax.set_title("AI Тренд (CPU, RAM, Disk, AI Score)", color=ACCENT)
+        ax.legend()
+        fig.tight_layout()
+        plt.show()
+
+    def update_ai_analysis(self):
+        # Отримай дані (останній зібраний зріз)
+        if not self.app_ref or not hasattr(self.app_ref, "data_manager"):
+            return
+        data = self.app_ref.data_manager.get_current_metrics()
+        # AI Health Score = 100 - (cpu% + ram%)/2
+        cpu, ram, disk = data.get("cpu_percent", 0), data.get("ram_percent", 0), data.get("disk_percent", 0)
+        score = int(max(0, 100 - (cpu + ram)/2))
+        self._animate_score(score)
+        self._draw_status_circle(score)
+        self.health_label.config(text=f"🧠 AI Health Score: {score}%")
+        # Порада
+        advice = ""
+        if cpu > 90:
+            advice = "🔴 Високе навантаження на процесор. Закрийте зайві програми."
+        elif ram > 85:
+            advice = "🟠 Високе використання пам'яті. Рекомендуємо перезавантажити ПК."
+        elif disk > 90:
+            advice = "🔴 Диск майже заповнений. Очистіть його."
+        else:
+            advice = "🟢 Система стабільна!"
+        self.advice_label.config(text=advice)
+
+        # Деталізація
+        self.predictions_text.config(state="normal")
+        self.predictions_text.delete(1.0, tk.END)
+        self.predictions_text.insert(tk.END, f"CPU: {cpu}%\nRAM: {ram}%\nDisk: {disk}%\n", "bold")
+        # Додати результати швидкого тесту диску
+        try:
+            disk_score = SimpleTests(self.app_ref.data_manager).run_disk_test().get("disk_score", 0)
+            self.predictions_text.insert(tk.END, f"💽 Disk Speed Test: {disk_score}%\n", "pred")
+        except Exception:
+            pass
+        # Мережа
+        try:
+            net = get_network_data(interval=1)
+            recv, sent = net.get("net_recv_mb_s", 0), net.get("net_sent_mb_s", 0)
+            self.predictions_text.insert(tk.END, f"📡 Мережа: ↓ {recv*8:.1f} Мбіт/с | ↑ {sent*8:.1f} Мбіт/с\n", "pred")
+        except Exception:
+            pass
+        self.predictions_text.config(state="disabled")
+
+    def _animate_score(self, target):
+        # Плавно анімуй до target
+        step = 2 if abs(self.last_score - target) > 10 else 1
+        if self.last_score < target:
+            self.last_score += step
+            if self.last_score > target:
+                self.last_score = target
+            self.health_bar.set_progress(self.last_score)
+            self.frame.after(15, lambda: self._animate_score(target))
+        elif self.last_score > target:
+            self.last_score -= step
+            if self.last_score < target:
+                self.last_score = target
+            self.health_bar.set_progress(self.last_score)
+            self.frame.after(15, lambda: self._animate_score(target))
+        else:
+            self.health_bar.set_progress(target)

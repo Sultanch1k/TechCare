@@ -7,6 +7,42 @@
 import json
 import os
 from datetime import datetime
+import psutil
+import time
+
+import GPUtil
+
+def get_gpu_load():
+    try:
+        gpus = GPUtil.getGPUs()
+        if gpus:
+            return gpus[0].load * 100  # Повертає % завантаження першої відеокарти
+        else:
+            return 0
+    except Exception as e:
+        print("[DEBUG] GPU Error:", e)
+        return None
+
+
+def get_uptime_str():
+    try:
+        import psutil, time
+        boot_time = psutil.boot_time()
+        now = time.time()
+        uptime = int(now - boot_time)
+        hours = uptime // 3600
+        minutes = (uptime % 3600) // 60
+        return f"{hours} год {minutes} хв"
+    except Exception as e:
+        print(f"[DEBUG] Uptime error: {e}")
+        return "—"
+        
+def get_window_count():
+    try:
+        import pygetwindow as gw
+        return len([w for w in gw.getAllWindows() if w.title.strip()])
+    except Exception:
+        return 0
 
 class JsonDataManager:
     def __init__(self):
@@ -51,7 +87,7 @@ class JsonDataManager:
                 'cpu_percent': data.get('cpu_percent', 0),
                 'ram_percent': data.get('ram_percent', 0),
                 'disk_percent': data.get('disk_percent', 0),
-                'temperature': data.get('temperature')
+                
             }
             self.data['system_history'].append(record)
             
@@ -119,3 +155,37 @@ class JsonDataManager:
         self.data['settings'][key] = value
         self.save_data()
         return True
+    
+    
+    # Отримання поточних метрик системи
+    def get_current_metrics(self):
+        cpu = psutil.cpu_percent(interval=0.1)
+        ram = psutil.virtual_memory().percent
+        disk = psutil.disk_usage('C:\\').percent
+        gpu_load = get_gpu_load()
+        window_count = get_window_count()
+        def get_uptime_hours_and_minutes():
+            import psutil, time
+            boot_time = psutil.boot_time()
+            now = time.time()
+            uptime = int(now - boot_time)
+            hours = uptime // 3600
+            minutes = (uptime % 3600) // 60
+            return hours, minutes
+        hours, minutes = get_uptime_hours_and_minutes()
+        uptime_str = f"{hours} год {minutes} хв"
+        return {
+            "cpu_percent": cpu,
+            "ram_percent": ram,
+            "disk_percent": disk,
+            "window_count": window_count,
+            "uptime_hours": hours,
+            "uptime_minutes": minutes,
+            "gpu_load": gpu_load,
+            "uptime_str": uptime_str  
+        }
+
+        
+
+        
+    
