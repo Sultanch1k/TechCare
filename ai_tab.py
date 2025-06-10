@@ -33,6 +33,7 @@ class AITab:
         self.last_score = 0
         self._init_ui()
         self._auto_refresh()
+        
 
     def _init_ui(self):
         tk.Label(self.frame, text="🤖 AI Аналітика", font=("Segoe UI", 15, "bold"), fg=ACCENT, bg=DARK_BG).pack(pady=(16, 5))
@@ -90,26 +91,45 @@ class AITab:
         self.status_canvas.create_oval(4, 4, 28, 28, fill=color, outline="")
 
     def _show_trend(self):
+        # 1) Перевірки наявності даних
         if not self.app_ref or not hasattr(self.app_ref, "data_manager"):
             return
         history = self.app_ref.data_manager.get_historical_data(days=7)
         if not history:
             return
+
+        # 2) Імпорти
         import matplotlib.pyplot as plt
-        timestamps = [h["timestamp"].split('T')[0] for h in history[-30:]]
-        cpu = [h.get("cpu_percent", 0) for h in history[-30:]]
-        ram = [h.get("ram_percent", 0) for h in history[-30:]]
-        disk = [h.get("disk_percent", 0) for h in history[-30:]]
-        ai = [100 - ((c + r)/2) for c, r in zip(cpu, ram)]
+        from datetime import datetime
+
+        # 3) Підготовка даних
+        # Конвертуємо ISO-рядок у datetime, щоб на осі Х було видно годину та хвилину
+        times = [
+            datetime.fromisoformat(h["timestamp"])
+            for h in history[-30:]
+        ]
+        cpu   = [h.get("cpu_percent", 0)  for h in history[-30:]]
+        ram   = [h.get("ram_percent", 0)  for h in history[-30:]]
+        disk  = [h.get("disk_percent", 0) for h in history[-30:]]
+        ai_sc = [100 - ((c + r) / 2)        for c, r in zip(cpu, ram)]
+
+        # 4) Створюємо фігуру і вісь ПЕРЕД будь-яким викликом ax.plot
         fig, ax = plt.subplots(figsize=(8, 4), facecolor=DARK_BG)
         ax.set_facecolor(CARD_BG)
-        ax.plot(timestamps, cpu, label="CPU (%)", lw=2)
-        ax.plot(timestamps, ram, label="RAM (%)", lw=2)
-        ax.plot(timestamps, disk, label="Disk (%)", lw=2)
-        ax.plot(timestamps, ai, label="AI Health Score", lw=2, color="#80FFD0")
+
+        # 5) Малюємо лінії
+        ax.plot_date(times, cpu,   '-', label="CPU (%)", lw=2)
+        ax.plot_date(times, ram,   '-', label="RAM (%)", lw=2)
+        ax.plot_date(times, disk,  '-', label="Disk (%)", lw=2)
+        ax.plot_date(times, ai_sc, '-', label="AI Health Score", lw=2)
+
+        # 6) Оформлення
         ax.set_title("AI Тренд (CPU, RAM, Disk, AI Score)", color=ACCENT)
         ax.legend()
+        fig.autofmt_xdate()          # повертаємо підписи дат під кутом
         fig.tight_layout()
+
+        # 7) Показуємо графік
         plt.show()
 
     def update_ai_analysis(self):
@@ -117,9 +137,25 @@ class AITab:
         if not self.app_ref or not hasattr(self.app_ref, "data_manager"):
             return
         data = self.app_ref.data_manager.get_current_metrics()
-        # AI Health Score = 100 - (cpu% + ram%)/2
-        cpu, ram, disk = data.get("cpu_percent", 0), data.get("ram_percent", 0), data.get("disk_percent", 0)
-        score = int(max(0, 100 - (cpu + ram)/2))
+        #
+        cpu, ram, disk = data.get("cpu_percent", 0), \
+                 data.get("ram_percent",   0), \
+                 data.get("disk_percent",  0)
+
+        # призначаємо ваги
+        w_cpu, w_ram, w_disk = 0.4, 0.4, 0.2
+
+        # інверсія навантаження
+        usable_cpu  = 100 - cpu
+        usable_ram  = 100 - ram
+        usable_disk = 100 - disk
+
+        # обчислення середньозваженого балу
+        score_float = (usable_cpu * w_cpu +
+                    usable_ram * w_ram +
+                    usable_disk * w_disk)
+        score = int(max(0, min(100, score_float)))
+
         self._animate_score(score)
         self._draw_status_circle(score)
         self.health_label.config(text=f"🧠 AI Health Score: {score}%")

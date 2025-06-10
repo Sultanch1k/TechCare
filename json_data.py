@@ -9,6 +9,9 @@ import os
 from datetime import datetime
 import psutil
 import time
+import ctypes
+import win32gui
+import win32con
 
 import GPUtil
 
@@ -36,13 +39,38 @@ def get_uptime_str():
     except Exception as e:
         print(f"[DEBUG] Uptime error: {e}")
         return "—"
+    
+def is_task_window(hwnd):
+    # 1. Має бути видиме
+    if not win32gui.IsWindowVisible(hwnd):
+        return False
+    # 2. Не має бути дочірнім (owner == 0)
+    if win32gui.GetWindow(hwnd, win32con.GW_OWNER):
+        return False
+    # 3. Має бути у Alt+Tab (не ToolWindow)
+    style = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
+    if style & win32con.WS_EX_TOOLWINDOW:
+        return False
+    # 4. Має мати заголовок (є текст)
+    if not win32gui.GetWindowText(hwnd):
+        return False
+    return True
+
+# Функції для роботи з вікнами
+def print_window_titles():
+    def callback(hwnd, extra):
+        if is_task_window(hwnd):
+            print(win32gui.GetWindowText(hwnd))
+    win32gui.EnumWindows(callback, None)
         
 def get_window_count():
-    try:
-        import pygetwindow as gw
-        return len([w for w in gw.getAllWindows() if w.title.strip()])
-    except Exception:
-        return 0
+    windows = []
+    def callback(hwnd, extra):
+        if is_task_window(hwnd):
+            windows.append(hwnd)
+    win32gui.EnumWindows(callback, None)
+    print_window_titles()
+    return len(windows)
 
 class JsonDataManager:
     def __init__(self):

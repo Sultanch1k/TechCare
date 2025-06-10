@@ -79,6 +79,7 @@ class TechCareApp:
         self.auto_collect_running = False
 
         self.gui.root.after(500, self.gui.finish_loading)
+        self.start_auto_collect()
 
         print("Кінець ініціалізації TechCareApp")
     

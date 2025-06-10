@@ -9,9 +9,7 @@ import os
 import clr
 from pathlib import Path
 
-# підключаємо LibreHardwareMonitor DLL
-dll = Path(__file__).parent / "LibreHardwareMonitorLib.dll"
-clr.AddReference(str(dll))
+
 
 import platform
 import time

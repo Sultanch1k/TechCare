@@ -228,7 +228,8 @@ class TechCareGUI:
             "ram": datetime.min,
             "backup": datetime.min
         }
-        self.alert_cooldown = timedelta(minutes=10)
+        self.alert_cooldown = timedelta(minutes=60) # 60 хвилин між сповіщеннями одного типу
+       
 
     # функція для контролю частоти повідомлень
     def can_alert(self, alert_type):
@@ -240,7 +241,7 @@ class TechCareGUI:
 
     def finish_loading(self):
         self.loading_screen.update_progress(100, "Готово!")
-        time.sleep(0.4)
+        time.sleep(0.1)
         self.loading_screen.close()
         self.root.deiconify()
         self.root.update()
@@ -319,13 +320,28 @@ class TechCareGUI:
         self.ai_tab = AITab(self.tab_control, self.app_ref)
         self.tab_control.add(self.ai_tab.frame, text="AI Аналітика")
 
-        # (Історія, досягнення, розклад — можна додати аналогічно)
-        self.create_history_tab()
+        self.hardware_tab = tk.Frame(self.tab_control, bg=DARK_BG)
+        self.tab_control.add(self.hardware_tab, text="Складові ПК")
+        self.hardware_initialized = False  # Флаг ініціалізації
+
+        def on_tab_change(event):
+            selected = event.widget.index("current")
+            tab_text = event.widget.tab(selected, "text")
+            if tab_text == "Складові ПК" and not self.hardware_initialized:
+                self.create_hardware_info_tab()
+                self.hardware_initialized = True
+
+        self.tab_control.bind("<<NotebookTabChanged>>", on_tab_change)
+    #    Вкладки для інших функцій
         self.create_achievements_tab()
         self.create_schedule_tab()
 
         self.create_status_bar()
         self.create_help_tab()
+
+        
+
+       
 
     def create_modern_header(self):
         header = tk.Frame(self.root, bg=DARK_BG, height=76)
@@ -633,12 +649,14 @@ olAppt.Save
     def send_email_reminder(self, subject, body, to_email):
         msg = MIMEText(body)
         msg["Subject"] = subject
-        msg["From"] = "forchatix@gmail.com"       # <-- тут свою пошту!
-        msg["To"] = to_email
+        msg["From"]    = "forchatix@gmail.com"     # ваша реальна адреса
+        msg["To"]      = to_email
         try:
             s = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-            s.login("forchatix@gmail.com", "Bumer777.")  # <-- тут свій app password!
-            s.sendmail("your_email@gmail.com", [to_email], msg.as_string())
+            # сюди вставте App Password, згенерований у налаштуваннях Google
+            s.login("forchatix@gmail.com", "yhsq kvjt ldmd gdgf")
+            # ТУТ має бути точно така ж адреса, що в login()
+            s.sendmail("forchatix@gmail.com", [to_email], msg.as_string())
             s.quit()
         except Exception as e:
             self.show_notification("Помилка пошти", str(e))
@@ -646,31 +664,7 @@ olAppt.Save
 # Точка входу (factory для main.py)
     def create_gui(update_callback):
         return TechCareGUI(update_callback)
-    def create_history_tab(self):
-        self.history_tab = tk.Frame(self.tab_control, bg=DARK_BG)
-        self.tab_control.add(self.history_tab, text="Історія")
-
-        title = tk.Label(self.history_tab, text="📈 Історія системи",
-                        font=("Segoe UI", 14, "bold"), fg=ACCENT, bg=DARK_BG)
-        title.pack(pady=(16, 8), fill='x')
-
-        self.plot_button = tk.Button(
-            self.history_tab,
-            text="🔄 Побудувати графік",
-            command=self.plot_history,
-            font=("Segoe UI", 11, "bold"),
-            bg=ACCENT_2, fg=TEXT_MAIN,
-            activebackground=ACCENT, activeforeground=DARK_BG,
-            relief="flat", bd=0,
-            padx=24, pady=6,
-            cursor='hand2'
-        )
-        self.plot_button.pack(pady=(0, 10))
-        self.plot_button.bind("<Enter>", lambda e: self.plot_button.config(bg=ACCENT, fg=DARK_BG))
-        self.plot_button.bind("<Leave>", lambda e: self.plot_button.config(bg=ACCENT_2, fg=TEXT_MAIN))
-
-        self.canvas_frame = tk.Frame(self.history_tab, bg=DARK_BG)
-        self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    
 
     def plot_history(self):
         from json_data import JsonDataManager
@@ -939,6 +933,84 @@ olAppt.Save
         self.root.destroy()
         import os
         os._exit(0)
+    
+    def fill_hardware_info(self, frame):
+        # Очистити фрейм
+        for widget in frame.winfo_children():
+            widget.destroy()
+
+        import platform
+        import psutil
+
+        # Дані про систему
+        try:
+            cpu = platform.processor()
+            cpu_count = psutil.cpu_count(logical=True)
+            ram = psutil.virtual_memory().total // (1024**3)
+            system = platform.system()
+            release = platform.release()
+            machine = platform.machine()
+            node = platform.node()
+            gpu = "—"  # Якщо треба — підключити GPU інфо через сторонні бібліотеки
+            disks = psutil.disk_partitions()
+            disk_str = ""
+            for d in disks:
+                usage = psutil.disk_usage(d.mountpoint)
+                disk_str += f"{d.device}: {usage.total//(1024**3)} ГБ  "
+
+            items = [
+                ("Система", f"{system} {release} ({machine})"),
+                ("Комп'ютер", node),
+                ("Процесор", f"{cpu} ({cpu_count} потоків)"),
+                ("Оперативна пам'ять", f"{ram} ГБ"),
+                ("Диски", disk_str),
+                # ("Відеокарта", gpu), # якщо потрібно
+            ]
+        except Exception as e:
+            items = [("Помилка", str(e))]
+
+        for label, val in items:
+            row = tk.Frame(frame, bg=DARK_BG)
+            row.pack(fill="x", pady=3)
+            tk.Label(row, text=label + ":", font=("Segoe UI", 11, "bold"),
+                    bg=DARK_BG, fg=ACCENT, width=14, anchor="w").pack(side="left")
+            tk.Label(row, text=val, font=("Segoe UI", 11),
+                    bg=DARK_BG, fg=TEXT_MAIN, anchor="w", wraplength=420, justify="left").pack(side="left", fill="x", expand=True)
+
+    
+    def create_hardware_info_tab(self):
+        import platform
+        try:
+            import GPUtil
+            gpus = GPUtil.getGPUs()
+            gpu_info = gpus[0].name if gpus else "—"
+        except Exception:
+            gpu_info = "Н/Д"
+        try:
+            import psutil
+            ram = f"{round(psutil.virtual_memory().total / (1024 ** 3), 1)} GB"
+        except Exception:
+            ram = "Н/Д"
+        info = [
+            ("Процесор", platform.processor()),
+            ("Система", f"{platform.system()} {platform.release()}"),
+            ("Архітектура", platform.machine()),
+            ("Відеокарта", gpu_info),
+            ("ОЗП", ram),
+            ("Ім'я ПК", platform.node())
+        ]
+        for widget in self.hardware_tab.winfo_children():
+            widget.destroy()  # Очищення вкладки при повторному виклику
+        title = tk.Label(self.hardware_tab, text="🛠️ Складові ПК", font=("Segoe UI", 14, "bold"), fg=ACCENT, bg=DARK_BG)
+        title.pack(pady=(16, 10))
+        for name, val in info:
+            frame = tk.Frame(self.hardware_tab, bg=CARD_BG)
+            frame.pack(fill="x", padx=24, pady=6)
+            label = tk.Label(frame, text=name, font=("Segoe UI", 11, "bold"), fg=ACCENT_2, bg=CARD_BG, width=14, anchor="w")
+            label.pack(side="left")
+            value = tk.Label(frame, text=val, font=("Segoe UI", 11), fg=TEXT_MAIN, bg=CARD_BG, anchor="w")
+            value.pack(side="left", padx=(16,0))
+
     
 
 
